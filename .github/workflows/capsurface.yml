@@ -1,0 +1,39 @@
+name: capsurface capability check
+
+on:
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+
+jobs:
+  capability-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch capsurface
+        run: |
+          # In a real repo, vendor capsurface (git submodule, npm package,
+          # or copy bin/+lib/) rather than fetching it ad hoc.
+          echo "capsurface is expected at ./tools/capsurface, adjust path as needed"
+
+      - name: Scan node_modules capability surface
+        run: node tools/capsurface/bin/capsurface.js scan-tree node_modules --out .capsurface/manifests
+
+      - name: Check against approved baseline
+        run: node tools/capsurface/bin/capsurface.js check .capsurface/manifests --baseline capsurface.lock.json
+
+      # If this step fails, a dependency's capability surface grew
+      # (new lifecycle script, new network/exec/env/credential access, or a
+      # new literal network endpoint) relative to what was last reviewed.
+      # Investigate the flagged package before merging; if the change is
+      # legitimate, re-run `capsurface baseline` locally and commit the
+      # updated capsurface.lock.json alongside this PR.

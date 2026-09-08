@@ -1,0 +1,9 @@
+{
+  "name": "handy-color-utils",
+  "version": "2.3.0",
+  "description": "small color conversion helpers",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"no tests\""
+  }
+}

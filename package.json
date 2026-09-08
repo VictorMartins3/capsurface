@@ -1,0 +1,41 @@
+{
+  "name": "capsurface",
+  "version": "0.1.0",
+  "description": "Capability-aware supply-chain scanner: computes a dependency's declared capability surface (filesystem, network, exec, env, lifecycle scripts) and flags escalation across versions in CI.",
+  "keywords": [
+    "supply-chain-security",
+    "npm-security",
+    "security-scanner",
+    "sca",
+    "cli",
+    "capability-detection",
+    "malware-detection",
+    "ci-cd"
+  ],
+  "bin": {
+    "capsurface": "bin/capsurface.js"
+  },
+  "main": "lib/scanner.js",
+  "files": [
+    "bin",
+    "lib",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "license": "MIT",
+  "author": "Victor Martinsd",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=18",
+      "onFail": "warn"
+    }
+  }
+}

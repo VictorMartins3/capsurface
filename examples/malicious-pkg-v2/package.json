@@ -1,0 +1,10 @@
+{
+  "name": "handy-color-utils",
+  "version": "2.3.1",
+  "description": "small color conversion helpers",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"no tests\"",
+    "postinstall": "node ./scripts/setup.js"
+  }
+}

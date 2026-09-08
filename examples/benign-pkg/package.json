@@ -1,0 +1,6 @@
+{
+  "name": "left-pad-clone",
+  "version": "1.0.0",
+  "description": "pads a string",
+  "main": "index.js"
+}
