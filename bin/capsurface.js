@@ -6,6 +6,7 @@ const path = require('path');
 const { scanPackageDir } = require('../lib/scanner');
 const { diffManifests, unionOfManifests } = require('../lib/diff');
 const { discoverPackageDirs } = require('../lib/discovery');
+const { INSTALL_TRIGGERING_SCRIPT_KEYS } = require('../lib/categories');
 
 function die(msg) {
   console.error(`capsurface: ${msg}`);
@@ -128,8 +129,31 @@ function cmdScanTree(args) {
     usedFilenames.add(filename);
     writeJson(path.join(flags.out, filename), manifest);
   }
+  // The install-time surface goes first, before the risk ranking. Scanning a
+  // realistic 215-package service showed why: exactly one package in it ran
+  // anything at install time (bcrypt, via node-pre-gyp), and because bcrypt's
+  // own source touches nothing else it scored 4 and sorted below twenty
+  // higher-scoring packages that cannot execute during install at all. The
+  // aggregate score answers "how much can this package do"; a reviewer's
+  // first question is "what runs on npm install", which is a much shorter
+  // list and the one that decides blast radius.
+  const installTime = manifests.filter(
+    (m) => m.capabilities.lifecycleScripts && m.capabilities.lifecycleScripts.installTriggering
+  );
+  console.log(`Scanned ${manifests.length} package install(s), including nested, symlinked and pnpm-store locations.\n`);
+  console.log(`Runs code at install time: ${installTime.length} of ${manifests.length}`);
+  if (installTime.length) {
+    for (const m of installTime.sort((a, b) => b.riskScore - a.riskScore)) {
+      console.log(`  ${m.name}@${m.version}  risk=${m.riskScore}`);
+      const scripts = m.capabilities.lifecycleScripts.scripts || {};
+      for (const key of INSTALL_TRIGGERING_SCRIPT_KEYS) {
+        if (scripts[key]) console.log(`      ${key}: ${scripts[key]}`);
+      }
+    }
+  }
+
   manifests.sort((a, b) => b.riskScore - a.riskScore);
-  console.log(`Scanned ${manifests.length} package install(s) (including nested/symlinked/pnpm-store locations). Top risk:\n`);
+  console.log('\nHighest capability surface:\n');
   for (const m of manifests.slice(0, 20)) {
     console.log('  ' + summaryLine(m));
   }

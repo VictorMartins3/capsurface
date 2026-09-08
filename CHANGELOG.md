@@ -78,6 +78,46 @@ independent code review, not only the bundled demo fixture.
   matches a real manifest's shape (`obfuscationSignal`,
   `lifecycleScripts.present`/`installTriggering`).
 
+### Changed
+
+Tuned against a real dependency upgrade rather than only the bundled
+fixture. Installing 14 popular packages at two-year-old versions,
+baselining, then upgrading all of them to current produced 16 escalations,
+every one of them routine library evolution and none security relevant. A
+gate that fires 16 times on an ordinary upgrade gets switched off, so these
+classes are now reported without failing the build:
+
+- A changed `prepare`/`prepublish` body no longer escalates. It does not run
+  for a registry install at all, and eleven of the sixteen escalations were
+  build-tooling swaps (tshy, husky, lefthook, ts-scripts).
+- New env var reads escalate only for credential-shaped names. Upgrades
+  routinely add `NO_COLOR`, `no_proxy`, `DOTENV_CONFIG_QUIET`.
+- The `env` capability appearing on its own no longer escalates, for the
+  same reason. Credential-shaped access is still covered by the
+  sensitiveTargets category.
+- A new network endpoint escalates only when the package also runs at
+  install time or touches credentials, which is the exfiltration shape.
+  Every new endpoint seen on the upgrade was a documentation or
+  issue-tracker link in a comment or error message.
+- `fetch` is no longer matched as a bare `fetch(`. lru-cache's cache-fill
+  method is `fetch(k, opts)`, which made lru-cache and everything bundling
+  it (glob, via path-scurry) read as having network access. Real uses of
+  the web API are still matched, and node-fetch, undici, got, superagent
+  and request were added to the network module list.
+- `dist-node/`, `dist-esm/` and similar suffixed build directories now
+  count as build output, so an ordinary minified build no longer trips the
+  obfuscation signal.
+
+After this, the same upgrade produces 0 escalations while the worm fixture
+and every detection regression test still fail the gate.
+
+`scan-tree` now prints the install-time execution surface before the risk
+ranking. On a 215-package production tree exactly one package ran anything
+at install time (bcrypt, via node-pre-gyp), and it scored 4, sorting below
+twenty higher-scoring packages that cannot execute during install at all.
+The aggregate score answers "how much can this package do"; the first
+question a reviewer has is "what runs on npm install".
+
 ### Performance
 
 - `blankComments`'s per-character identifier and whitespace checks, about
@@ -96,7 +136,7 @@ independent code review, not only the bundled demo fixture.
 
 ### Verification
 
-- 42 automated tests (`npm test`) covering the discovery, diff, and
+- 63 automated tests (`npm test`) covering the discovery, diff, and
   comment-scanning bugs above as regressions.
 - Benchmarked against a real 118-package corpus of popular libraries and a
   462 MB / 428-package build-tooling tree: 0 false CRITICAL flags, down

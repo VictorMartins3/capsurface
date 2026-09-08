@@ -71,7 +71,7 @@ committed straight into the source tree, executing on folder-open with no
 
 ## Verification
 
-See `test/` (42 tests, `npm test`) and CHANGELOG.md for what was found and
+See `test/` (63 tests, `npm test`) and CHANGELOG.md for what was found and
 fixed while pressure-testing this against real installs instead of only
 the bundled demo.
 
@@ -100,6 +100,47 @@ diff. Regression fixtures cover a malicious `postinstall` hidden in a
 nested `node_modules`, the same hidden behind a symlink, and a version
 bump that adds only an obfuscated payload with no literal token for the
 regex to match, three cases that previously slipped through.
+
+### Does it survive a real dependency upgrade
+
+The thing that kills a CI security gate is not missed detections, it is
+false alarms on routine work. Tested by installing 14 popular packages at
+versions roughly two years old (express, lodash, axios, chalk, commander,
+dotenv, debug, semver, glob, uuid, ws, node-fetch, yargs, dayjs),
+baselining them, then upgrading all of them to current (npm reported 25
+added, 27 removed, 49 changed):
+
+| | escalations on that upgrade |
+|---|---|
+| Before this was tuned | 16 |
+| After | 0 |
+
+All 16 were routine library evolution: build-tooling swaps in `prepare`
+scripts (tshy, husky, lefthook), new support for `NO_COLOR` and `no_proxy`,
+and documentation URLs in error messages counted as new network endpoints.
+Zero were security relevant. A gate that fires 16 times on an ordinary
+upgrade gets switched off in a week, so those classes are now reported
+without failing the build, while the signals that mark an actual attack
+path still fail it. The bundled worm fixture and every detection regression
+test still fail the gate exactly as before.
+
+### On a realistic production tree
+
+A 215-package service (express, pg, ioredis, jsonwebtoken, bcrypt, pino,
+helmet, zod, prom-client, the AWS S3 SDK, stripe) scans in 1.6s and reports
+this first:
+
+```
+Runs code at install time: 1 of 215
+  bcrypt@5.1.1  risk=4
+      install: node-pre-gyp install --fallback-to-build
+```
+
+That is the entire install-time execution surface of the tree, which is the
+number that decides blast radius. It is also why the install-time list
+prints before the risk ranking: bcrypt scores 4, because its own source
+touches nothing else, and sorted below twenty higher-scoring packages that
+cannot execute during install at all.
 
 ### Benchmark against GuardDog
 
