@@ -136,7 +136,7 @@ question a reviewer has is "what runs on npm install".
 
 ### Verification
 
-- 63 automated tests (`npm test`) covering the discovery, diff, and
+- 65 automated tests (`npm test`) covering the discovery, diff, and
   comment-scanning bugs above as regressions.
 - Benchmarked against a real 118-package corpus of popular libraries and a
   462 MB / 428-package build-tooling tree: 0 false CRITICAL flags, down

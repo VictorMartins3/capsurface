@@ -19,8 +19,44 @@ new language or runtime required.
 
 ## Prior art
 
-Capability detection for npm packages is not new. Before going further,
-here is what else exists in this space and what capsurface adds.
+In August 2026 npm 12 began blocking install scripts by default, and pnpm
+11, Yarn 4.14, Bun and Deno now do the same. You opt packages back in
+through an allowlist (`allowScripts` in package.json, `allowBuilds` in
+pnpm-workspace.yaml), and `npm ci --strict-allow-scripts` fails CI when a
+new transitive dependency wants to run one.
+
+That closed the vector most of this tooling was built for, and it means the
+install-script question is largely answered by the package managers plus
+[npm-script-lens](https://www.npmjs.com/package/npm-script-lens), which
+statically analyses each pending install script so you can decide whether
+to approve it. It is good, it parses with acorn rather than regexes, it
+writes the native allowlist format for all four package managers, and it
+has a `--diff` mode for capabilities gained across upgrades. If your
+question is "which install scripts should I approve", use that.
+
+capsurface covers what is left after that door closes. The Semgrep writeup
+of the npm 12 change puts it plainly: typosquatting, dependency confusion
+and "plain old malicious runtime code" all survive it. Malicious runtime
+code is not hypothetical, it is what the event-stream compromise actually
+was: the payload lived in flatmap-stream's published files and ran when the
+library was used, with no lifecycle script involved.
+
+Verified rather than asserted. Given a package whose 3.1.0 is clean and
+whose 3.1.1 reads `~/.npmrc` and `NPM_TOKEN` and POSTs them out on first
+`require()`, with no install script anywhere:
+
+| | result |
+|---|---|
+| npm-script-lens 1.16.0 | "1 with no risky install-time behavior", nothing to review |
+| capsurface | exit 1, names the endpoint and `NPM_TOKEN`, HIGH exfiltration flag |
+
+Neither is wrong. A tool scoped to install scripts should report nothing
+when there is no install script. That scope is the difference: capsurface
+diffs the capability surface of every file a package ships, so it sees a
+payload that only runs at require time. `test/` and `docs/` are included on
+purpose, since that is exactly where flatmap-stream hid.
+
+Here is the rest of the landscape and where capsurface sits in it.
 
 | | Detection basis | Timing model | Deployment |
 |---|---|---|---|
@@ -71,7 +107,7 @@ committed straight into the source tree, executing on folder-open with no
 
 ## Verification
 
-See `test/` (63 tests, `npm test`) and CHANGELOG.md for what was found and
+See `test/` (65 tests, `npm test`) and CHANGELOG.md for what was found and
 fixed while pressure-testing this against real installs instead of only
 the bundled demo.
 
