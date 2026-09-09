@@ -528,3 +528,33 @@ describe('the globalThis polyfill is not dynamic code execution', () => {
     assert.equal(pkg('new Function("return this;fetch(x)")();\n').capabilities.dynamicEval.present, true);
   });
 });
+
+// A credential must appear as an actual access, not a mention. The rule was
+// already true of env vars; across 11,615 published packages, 34 of the 75
+// packages with this capability had no access at all, and a routine vite
+// upgrade failed the gate on the string ".npmrc" inside a bundled list of
+// config filenames.
+describe('credential paths must be used, not just named', () => {
+  function pkg(src) {
+    const tmp = mkTmpDir('cred-ctx');
+    return scanPackageDir(writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' }, { 'index.js': src }));
+  }
+  const present = (src) => pkg(src).capabilities.sensitiveTargets.present;
+
+  test('counts a path that is opened or built', () => {
+    assert.equal(present("fs.writeFileSync(path.resolve(os.homedir(), '.npmrc'), token);\n"), true);
+    assert.equal(present("const p = path.join(dir, '.npmrc');\n"), true);
+    assert.equal(present("const k = readFileSync(os.homedir() + '/.ssh/id_rsa');\n"), true);
+  });
+
+  test('ignores a path that is only named', () => {
+    assert.equal(present('const list = [".npmrc", ".yarnrc"];\n'), false);
+    assert.equal(present('const RE = /^\\.npmrc$/i;\n'), false);
+    assert.equal(present('console.log("set the token in the project .npmrc");\n'), false);
+    assert.equal(present('const glob = "**/id_rsa";\n'), false);
+  });
+
+  test('env credential rules are unaffected; they are already access-shaped', () => {
+    assert.equal(present('const t = process.env.NPM_TOKEN;\n'), true);
+  });
+});
