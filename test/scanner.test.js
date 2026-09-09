@@ -642,3 +642,39 @@ describe('eval must be eval', () => {
     assert.equal(present('page.eval(sel, fn);\n'), false);
   });
 });
+
+// The worm pattern needs credentials belonging to the environment a package
+// is installed into, not the package's own service key. Across 20,039
+// published packages the CRITICAL flag fired 37 times and 29 were the
+// second kind: figma-image-exporter runs a postinstall, talks to
+// api.figma.com and reads FIGMA_TOKEN.
+describe('what counts as the worm pattern', () => {
+  function flags(scripts, src) {
+    const tmp = mkTmpDir('worm-shape');
+    return scanPackageDir(writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0', scripts }, { 'index.js': src }))
+      .riskFlags;
+  }
+  const install = { postinstall: 'node setup.js' };
+
+  test('reaching for the developer environment is CRITICAL', () => {
+    const f = flags(install, "require('https'); const t = process.env.NPM_TOKEN;\n");
+    assert.ok(f.some((x) => x.startsWith('CRITICAL')));
+  });
+
+  test('reading ~/.npmrc is too', () => {
+    const f = flags(install, "require('https'); fs.readFileSync(path.join(os.homedir(), '.npmrc'));\n");
+    assert.ok(f.some((x) => x.startsWith('CRITICAL')));
+  });
+
+  test("a package's own service key is HIGH, and says so", () => {
+    const f = flags(install, "require('https'); const t = process.env.FIGMA_TOKEN;\n");
+    assert.ok(!f.some((x) => x.startsWith('CRITICAL')));
+    const high = f.find((x) => x.includes('credential-shaped'));
+    assert.ok(high && high.startsWith('HIGH'));
+  });
+
+  test('no install script means neither', () => {
+    const f = flags({}, "require('https'); const t = process.env.NPM_TOKEN;\n");
+    assert.ok(!f.some((x) => x.startsWith('CRITICAL')));
+  });
+});

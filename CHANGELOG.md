@@ -207,10 +207,22 @@ Reporting fixes:
 What the sample says about the ecosystem. 469 of 20,039 packages run
 something at install time, 2.3%. 185 of those run a JavaScript file, 111 are
 node-gyp or prebuild, 21 inline code with `node -e`, 8 only print a message,
-and exactly one pipes a download into a shell. Of the 20,039, 37 are
-CRITICAL and 202 HIGH. The CRITICAL set is dominated by a shape that barely
-existed a year ago: agent and MCP command-line tools that run a postinstall,
-talk to the network, and read an API key.
+and exactly one pipes a download into a shell. Of the 20,039, 8 are
+CRITICAL and 231 HIGH.
+
+That CRITICAL count was 37 before the last rule change, and the 29 that
+moved are worth describing, because they are the reason the rule changed.
+Almost all were agent and MCP command-line tools, a shape that barely
+existed a year ago, which run a postinstall, talk to the network, and read
+their own service key. The flag told figma-image-exporter, which runs a
+postinstall, talks to api.figma.com and reads FIGMA_TOKEN, that it matched
+Shai-Hulud. A worm propagates on credentials belonging to the environment
+it lands in, an npm or GitHub token, an SSH key, AWS keys, ~/.npmrc, and
+that is now what the flag requires. The other 29 are still reported, one
+severity down and described as what they are. The 8 that remain, yarn, nx,
+github-registry-auth, node-pty-prebuilt-multiarch, data-primals-engine,
+railwise-ai, @deskpro/apps-dpat and sdl-mcp, all genuinely reach for
+credentials that are not theirs.
 
 ### Does an ordinary upgrade still pass
 

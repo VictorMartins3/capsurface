@@ -177,7 +177,17 @@ of the sample reads that way. The manifest now says which it is.
 What the sample says about npm itself: 469 of 20,039 packages run something
 at install time, 2.3%. 185 run a JavaScript file, 111 are node-gyp or
 prebuild, 21 inline code with `node -e`, 8 only print a message, and
-exactly one pipes a download into a shell. 37 are CRITICAL and 202 HIGH.
+exactly one pipes a download into a shell. 8 are CRITICAL and 231 HIGH.
+
+That last number moved late. The CRITICAL flag claims a package matches the
+self-propagating worm pattern, and it was firing 37 times, 29 of them on
+agent and MCP command-line tools that run a postinstall, talk to the network
+and read their own service key. It was telling figma-image-exporter, a Figma
+CLI reading FIGMA_TOKEN, that it looked like Shai-Hulud. A worm propagates
+on credentials belonging to the environment it lands in, so that is what the
+flag requires now; the other 29 are still reported one severity down. Being
+wrong in the highest-severity output is the most expensive place to be
+wrong.
 
 Throughput on that corpus: 161 packages/s single threaded, 37.5s for all
 20,039, after the profiling work in CHANGELOG.md. Every optimisation was
