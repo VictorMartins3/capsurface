@@ -118,6 +118,27 @@ describe('blankComments', () => {
 });
 
 describe('looksLikeBuildArtifact', () => {
+  // Directory conventions taken from where the obfuscation signal actually
+  // fired across 11,615 published packages. bundles/, fesm2022/ and esm2020/
+  // are the Angular Package Format, coverage/ is an istanbul report.
+  test('recognises machine-generated output directories found in the wild', () => {
+    for (const f of ['bundles/x.umd.js', 'fesm2022/a.mjs', 'esm2020/lib/a.js', 'es/components/a.js',
+      'coverage/lcov-report/prettify.js', '.yarn/releases/yarn-3.6.0.cjs', 'docs/scripts/prettify.js',
+      'public/js/app.js', 'assets/js/v.js']) {
+      assert.equal(looksLikeBuildArtifact(f), true, f);
+    }
+  });
+
+  // lib/ and src/ were the two largest sources of unrecognised long lines and
+  // are still deliberately not build output: both hold hand-authored code,
+  // and a 39,000-character line in src/ is what this signal is for.
+  test('does not swallow hand-authored directories or near-miss names', () => {
+    for (const f of ['lib/application.js', 'src/pages/hebei.js', 'index.js', 'bin/cli',
+      'scripts/postinstall.js', 'test/x.js', 'esmodule/a.js', 'description/a.js']) {
+      assert.equal(looksLikeBuildArtifact(f), false, f);
+    }
+  });
+
   test('recognizes common bundler output paths', () => {
     assert.ok(looksLikeBuildArtifact('dist/index.js'));
     assert.ok(looksLikeBuildArtifact('core.min.js'));
