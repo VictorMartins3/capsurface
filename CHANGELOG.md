@@ -78,7 +78,49 @@ independent code review, not only the bundled demo fixture.
   matches a real manifest's shape (`obfuscationSignal`,
   `lifecycleScripts.present`/`installTriggering`).
 
+### Validated against 16 production open source projects
+
+Scanned fastify, got, eslint, prettier, nest, express, koa, socket.io,
+axios, chalk, hono, winston, zustand, pm2, commander and date-fns:
+11,057 package installs, 4,580 distinct packages. Rather than reading
+findings one at a time, every evidence entry now records which rule
+produced it, so rules can be judged by what they actually match at scale.
+
+Four rules were wrong and are fixed:
+
+- Credential env detection keyed on vendor prefixes, so `NPM_` matched
+  `npm_config_geckodriver_cdnurl`. npm passes its own configuration to
+  install scripts that way, which pushed geckodriver and edgedriver to
+  CRITICAL without either reading a credential, and would have counted
+  `GITHUB_WORKSPACE` and `AWS_REGION` too. It now matches the noun that
+  denotes a secret, not the vendor.
+- Credential names now require an actual `process.env` read. The bare-name
+  rules were matching help text telling users to set `GITHUB_TOKEN`,
+  assertions in shipped tests, and string literals in config lists.
+- `.connect(` and `.createConnection(` were removed, applying the rule
+  already used for exec: key on the module import, not a call site whose
+  name is shared with unrelated APIs. It was reporting inquirer's
+  `this.process.connect()` and rxjs's `connectable.connect()` as network
+  access. It did catch one real thing the module list missed,
+  `http2.connect`, so `http2` was added.
+- The obfuscation signal counted comment-blanked lines, because blanking
+  preserves length to keep columns accurate. A 592-character JSDoc line
+  became 592 spaces and still counted as long, so documentation was
+  reported as obfuscation. It now measures trimmed code length and needs
+  several long lines, since one long line is a data blob or a large regex.
+
+Across those 4,580 packages the result is 1 CRITICAL, and it is true: nx
+runs a postinstall, talks to the network, reads `process.env.GITHUB_TOKEN`
+and the user's `.npmrc`.
+
+The ecosystem-wide install-time surface is small and concentrated. Only
+esbuild (9 of 16 projects) and unrs-resolver (7) are common, followed by a
+long tail of one-offs: cypress, sharp, puppeteer, fsevents, workerd, re2,
+core-js, geckodriver, edgedriver. Under npm 12 that is the list every
+project now has to allowlist.
+
 ### Changed
+
 
 Tuned against a real dependency upgrade rather than only the bundled
 fixture. Installing 14 popular packages at two-year-old versions,
