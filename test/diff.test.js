@@ -174,3 +174,36 @@ describe('a version that becomes unreadable', () => {
     assert.equal(diffManifests(before, after).escalated, false);
   });
 });
+
+// The question a reviewer is asked is whether the package now talks to
+// somewhere it did not before. Another path on a host it already used is
+// not that: diffing consecutive prisma releases, the gate failed five times
+// in a row on github.com documentation links.
+describe('new network endpoints', () => {
+  function withEndpoints(tmp, rel, version, urls) {
+    return scan(tmp, rel, { name: 'p', version, scripts: { postinstall: 'node x.js' } }, {
+      'index.js': urls.map((u) => `fetch(${JSON.stringify(u)});`).join('\n') + '\n',
+    });
+  }
+
+  test('another path on a known host is reported but does not gate', () => {
+    const tmp = mkTmpDir('endpoint-path');
+    const before = withEndpoints(tmp, 'v1', '1.0.0', ['https://github.com/a/b']);
+    const after = withEndpoints(tmp, 'v2', '1.0.1', ['https://github.com/a/b', 'https://github.com/c/d']);
+    const report = diffManifests(before, after);
+    const change = report.changes.find((c) => c.type === 'new-network-endpoints');
+    assert.ok(change, 'the new URL is still reported');
+    assert.equal(change.escalates, false);
+    assert.equal(report.escalated, false);
+  });
+
+  test('a new host gates', () => {
+    const tmp = mkTmpDir('endpoint-host');
+    const before = withEndpoints(tmp, 'v1', '1.0.0', ['https://github.com/a/b']);
+    const after = withEndpoints(tmp, 'v2', '1.0.1', ['https://github.com/a/b', 'https://collector.invalid/x']);
+    const report = diffManifests(before, after);
+    assert.equal(report.escalated, true);
+    const change = report.changes.find((c) => c.type === 'new-network-endpoints');
+    assert.match(change.detail, /new host\(s\): collector\.invalid/);
+  });
+});

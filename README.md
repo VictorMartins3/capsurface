@@ -224,19 +224,27 @@ That test is now a standing one, widened so it cannot be tuned against:
 against its current release. Two years and, for many of them, a major
 version apart.
 
-| | escalations |
+| | escalations of 82 |
 |---|---|
 | Before the registry-scale campaign below | 5 |
-| After | 3 |
+| After its false-positive fixes | 3 |
+| After its `node:` fix | 6 |
 
 The two that went away were both the gate misreading generated code:
 `zod` 3 to 4 on a long IPv6 regex literal, `vite` 5 to 8 on the string
-`".npmrc"` inside a bundled list of config filenames. Of the three that
-remain, `prisma` is correct, its `preinstall` really did change across the
-major and it began reading `PRISMA_PLATFORM_AUTH_FILE`, and `fastify`
-reports a real read of `process.env.GITHUB_TOKEN` in
-`scripts/validate-ecosystem-links.js`, a repository CI script it publishes
-inside its tarball.
+`".npmrc"` inside a bundled list of config filenames.
+
+Then the number went up, because the scanner started seeing things it had
+been blind to. `nanoid` 6 added a CLI that reads files with
+`import { readFileSync } from 'node:fs'` and `vitest` spawns processes with
+`node:child_process`; neither was visible before. A capability a dependency
+did not have two years ago is what this is supposed to raise once.
+
+Teams upgrade one release at a time, so that is measured too: every fifth
+release of the same packages since 2024, diffed against the one before it.
+396 upgrades, 19 escalations, 4.8%. One in twenty asks for a glance, and
+they are worth it, `prettier` 3.7 really did add a `fetch` call to its
+experimental CLI.
 
 ### On a realistic production tree
 

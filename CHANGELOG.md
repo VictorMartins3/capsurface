@@ -165,6 +165,14 @@ Capabilities the scanner was crediting that do not exist:
 
 Capabilities the scanner was missing:
 
+- The `node:` prefix, outside the network category. `node:fs`,
+  `node:child_process` and `node:vm` are the documented modern spelling, and
+  `require('node:child_process')` was invisible to the process-execution
+  rule: a complete bypass written in the syntax Node's own documentation
+  recommends. 1,322 packages of 23,806, 5.6%, were missing a capability they
+  genuinely have, 938 filesystem and 741 process execution, and 47 new HIGH
+  flags came with them.
+
 - Lifecycle script commands were recorded and never matched against
   anything. That hid the one package in the corpus that beacons out on
   install, `xhjxhjtestrce123`, whose preinstall and postinstall both run
@@ -226,20 +234,38 @@ credentials that are not theirs.
 
 ### Does an ordinary upgrade still pass
 
-Rebuilt as a standing regression: take 82 popular packages at their last
-release before 2024-09-01 and diff the current release against it. Every
-escalation is a false alarm a real team would have triaged.
+Two standing regressions, because they answer different questions.
 
-| | escalations |
+**A two-year jump.** 82 popular packages at their last release before
+2024-09-01, diffed against the current release.
+
+| | escalations of 82 |
 |---|---|
 | Before the fixes above | 5 |
-| After | 3 |
+| After the false-positive fixes | 3 |
+| After the `node:` fix | 6 |
 
-Of the three that remain, `prisma` is correct (its `preinstall` really did
-change across a major, and it began reading `PRISMA_PLATFORM_AUTH_FILE`).
-`fastify` reports a real read of `process.env.GITHUB_TOKEN`, in
-`scripts/validate-ecosystem-links.js`, a repository CI script it publishes
-inside its tarball.
+The number went up, and it went up because the scanner started seeing things
+it had been blind to. `nanoid` 6 added a CLI that reads files with
+`import { readFileSync } from 'node:fs'`, `vitest` spawns processes with
+`node:child_process`, and neither was visible before. A capability a
+dependency did not have two years ago is exactly what this is supposed to
+raise once. The other three: `prisma`'s `preinstall` genuinely changed
+across a major and it began reading `PRISMA_PLATFORM_AUTH_FILE`, `fastify`
+reads `process.env.GITHUB_TOKEN` in `scripts/validate-ecosystem-links.js`, a
+repository CI script it publishes inside its tarball, and `vite` 8 began
+referencing `COPILOT_GITHUB_TOKEN` to detect whether it is running inside an
+agent.
+
+**Consecutive releases**, which is how teams actually upgrade: for the same
+packages, every fifth release since 2024 diffed against the one before it.
+396 upgrades, 19 escalations, 4.8%. About one upgrade in twenty asks for a
+human glance, and the sample above says they are worth glancing at:
+`prettier` 3.7 really did add a `fetch` call to its experimental CLI.
+
+That test is also what found the `node:` blind spot. `glob` appeared to gain
+filesystem access between two patch releases, which is not a thing that
+happens, and the reason was that 13.0.1 spells it `node:fs`.
 
 ### Changed
 
