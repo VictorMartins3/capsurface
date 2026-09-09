@@ -336,7 +336,17 @@ function cmdCheck(args) {
 
   const shouldFail = anyEscalation || (flags['fail-on-new'] && newPackages.length > 0);
   if (shouldFail) {
-    console.error('capsurface check FAILED: review and re-baseline before merging.');
+    // Whoever reads this has to decide between "this is an attack" and "this
+    // is a legitimate upgrade", and the second answer needs a command. Not
+    // printing it here means going to find the README mid-review.
+    const baselineArg = flags.baseline || 'capsurface.lock.json';
+    console.error('capsurface check FAILED.\n');
+    console.error('Each entry above names a dependency that can do something it could not do');
+    console.error('when the baseline was approved. Look at the package and version named,');
+    console.error('then either reject the upgrade or accept the new surface with:\n');
+    console.error(`    capsurface baseline ${manifestsDir} --out ${baselineArg}\n`);
+    console.error('Commit the updated baseline in the same change, so the approval is');
+    console.error('reviewed alongside the upgrade that caused it.');
     process.exit(1);
   } else {
     console.log('capsurface check passed.');
