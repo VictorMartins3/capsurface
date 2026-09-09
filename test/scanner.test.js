@@ -687,3 +687,52 @@ describe('what counts as the worm pattern', () => {
     assert.ok(!f.some((x) => x.startsWith('CRITICAL')));
   });
 });
+
+// npm strips a leading byte-order mark, so a BOM-prefixed package.json is a
+// valid published package. All 6 of 20,039 that have one were being
+// reported as malformed.
+describe('package.json parsing', () => {
+  test('accepts a byte-order mark', () => {
+    const tmp = mkTmpDir('bom');
+    const dir = path.join(tmp, 'pkg');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'package.json'), '\ufeff' + JSON.stringify({ name: 'p', version: '1.0.0' }));
+    fs.writeFileSync(path.join(dir, 'index.js'), 'module.exports = {};\n');
+    const m = scanPackageDir(dir);
+    assert.equal(m.malformedPackageJson, false);
+    assert.equal(m.name, 'p');
+  });
+
+  test('still reports genuinely invalid JSON', () => {
+    const tmp = mkTmpDir('bad-json');
+    const dir = path.join(tmp, 'pkg');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'package.json'), '{ "name": ');
+    const m = scanPackageDir(dir);
+    assert.equal(m.malformedPackageJson, true);
+  });
+});
+
+// Only the commands a consumer actually runs contribute capabilities.
+// Crediting the package for what `prepare` does would contradict scoring it
+// lower for not running: glob's prepare is `tshy && bash scripts/build.sh`,
+// and it made a routine glob 10 to 13 upgrade fail the gate.
+describe('build-time scripts do not grant capabilities', () => {
+  test('a prepare script that shells out is recorded but grants nothing', () => {
+    const tmp = mkTmpDir('prepare-scope');
+    const m = scanPackageDir(writePackage(tmp, 'pkg', {
+      name: 'pkg', version: '1.0.0', scripts: { prepare: 'tshy && bash scripts/build.sh' },
+    }, { 'index.js': 'module.exports = {};\n' }));
+    assert.equal(m.capabilities.exec.present, false);
+    assert.equal(m.capabilities.lifecycleScripts.scripts.prepare, 'tshy && bash scripts/build.sh');
+    assert.equal(m.capabilities.lifecycleScripts.installTriggering, false);
+  });
+
+  test('the same command in postinstall does grant it', () => {
+    const tmp = mkTmpDir('postinstall-scope');
+    const m = scanPackageDir(writePackage(tmp, 'pkg', {
+      name: 'pkg', version: '1.0.0', scripts: { postinstall: 'bash scripts/build.sh' },
+    }, { 'index.js': 'module.exports = {};\n' }));
+    assert.equal(m.capabilities.exec.present, true);
+  });
+});
