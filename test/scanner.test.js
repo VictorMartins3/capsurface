@@ -453,3 +453,36 @@ describe('executables and unreadable packages', () => {
     assert.equal(m.capabilities.noReadableSource.present, false);
   });
 });
+
+// A postinstall that only prints a message still marked the package as
+// running code at install time, which is one leg of the worm pattern.
+// aethercall was CRITICAL on that basis alone.
+describe('install commands that cannot execute anything', () => {
+  function pkg(scripts, files = { 'index.js': "require('https'); const k = process.env.API_KEY;\n" }) {
+    const tmp = mkTmpDir('inert');
+    return scanPackageDir(writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0', scripts }, files));
+  }
+
+  test('an echo-only postinstall is not install-time execution', () => {
+    const m = pkg({ postinstall: "echo 'thanks for installing! run npm run setup'" });
+    assert.equal(m.capabilities.lifecycleScripts.installTriggering, false);
+    assert.ok(!m.riskFlags.some((f) => f.startsWith('CRITICAL')));
+  });
+
+  test('the command is still recorded for a reviewer to see', () => {
+    const m = pkg({ postinstall: 'echo hi' });
+    assert.equal(m.capabilities.lifecycleScripts.present, true);
+    assert.equal(m.capabilities.lifecycleScripts.scripts.postinstall, 'echo hi');
+  });
+
+  test('redirection or chaining makes it live again', () => {
+    assert.equal(pkg({ postinstall: 'echo x > ~/.profile' }).capabilities.lifecycleScripts.installTriggering, true);
+    assert.equal(pkg({ postinstall: 'echo hi; node evil.js' }).capabilities.lifecycleScripts.installTriggering, true);
+    assert.equal(pkg({ postinstall: 'echo `id`' }).capabilities.lifecycleScripts.installTriggering, true);
+  });
+
+  test('one live script among inert ones still counts', () => {
+    const m = pkg({ preinstall: 'echo hi', postinstall: 'node setup.js' });
+    assert.equal(m.capabilities.lifecycleScripts.installTriggering, true);
+  });
+});
