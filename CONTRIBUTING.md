@@ -1,5 +1,8 @@
 # Contributing to capsurface
 
+Start with [ARCHITECTURE.md](ARCHITECTURE.md): five modules, one
+direction of data flow, and a table of where to change what.
+
 ## Setup
 
 No install step. The tool itself has zero dependencies.

@@ -107,7 +107,7 @@ committed straight into the source tree, executing on folder-open with no
 
 ## Verification
 
-See `test/` (65 tests, `npm test`) and CHANGELOG.md for what was found and
+See `test/` (73 tests, `npm test`) and CHANGELOG.md for what was found and
 fixed while pressure-testing this against real installs instead of only
 the bundled demo.
 
@@ -335,7 +335,8 @@ fail the CI check with the exact capability diff.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues go through
+See [ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces fit and where
+to change what, then [CONTRIBUTING.md](CONTRIBUTING.md). Security issues go through
 [SECURITY.md](SECURITY.md), not a public issue.
 
 ## License
