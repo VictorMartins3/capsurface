@@ -746,3 +746,35 @@ describe('build-time scripts do not grant capabilities', () => {
     assert.equal(m.capabilities.exec.present, true);
   });
 });
+
+// `node:fs`, `node:child_process` and `node:vm` are the documented modern
+// spelling and were matched only in the network category. 1,322 of 23,806
+// published packages, 5.6%, were missing a capability they genuinely have:
+// 938 filesystem, 741 process execution.
+describe('the node: module prefix', () => {
+  function caps(src) {
+    const tmp = mkTmpDir('node-prefix');
+    return scanPackageDir(writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' }, { 'index.js': src }))
+      .capabilities;
+  }
+
+  test('is process execution', () => {
+    assert.equal(caps("const cp = require('node:child_process');\n").exec.present, true);
+    assert.equal(caps("import { spawn } from 'node:child_process';\n").exec.present, true);
+  });
+
+  test('is filesystem access', () => {
+    assert.equal(caps("const fs = require('node:fs');\n").filesystem.present, true);
+    assert.equal(caps("import fs from 'node:fs/promises';\n").filesystem.present, true);
+  });
+
+  test('is dynamic code execution for vm', () => {
+    assert.equal(caps("const vm = require('node:vm');\n").dynamicEval.present, true);
+    assert.equal(caps("import { runInNewContext } from 'vm';\n").dynamicEval.present, true);
+  });
+
+  test('does not match a package that merely starts with node', () => {
+    assert.equal(caps("require('nodefs');\n").filesystem.present, false);
+    assert.equal(caps("require('vm2');\n").dynamicEval.present, false);
+  });
+});

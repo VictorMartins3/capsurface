@@ -116,8 +116,10 @@ Discovery coverage, tested against a real 462 MB / 12,398-file tree
 capsurface finds 428 installed packages versus 286 from naively listing
 `node_modules`'s top-level directories. The other 142 are nested, scoped,
 or symlinked installs an earlier version of this tool missed. Scan time
-was 6.4s / 423 MB peak RSS for that tree, about 67 packages/s. A
-118-package install of popular libraries scans in under a second.
+was 6.4s / 423 MB peak RSS for that tree, about 67 packages/s, measured
+before the profiling work described in CHANGELOG.md; the current figure on
+a 20,039-package corpus is 161 packages/s single threaded. A 118-package
+install of popular libraries scans in well under a second.
 
 False-positive rate, same 118-package real corpus, before and after the
 fixes in CHANGELOG.md:
