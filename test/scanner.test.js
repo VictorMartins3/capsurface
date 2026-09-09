@@ -558,3 +558,36 @@ describe('credential paths must be used, not just named', () => {
     assert.equal(present('const t = process.env.NPM_TOKEN;\n'), true);
   });
 });
+
+// Endpoints feed the diff, so junk glued to a URL literal shows up in a
+// reviewer's report as a new endpoint. 1,919 of 31,128 endpoints extracted
+// from 20,039 published packages carried some.
+describe('network endpoint extraction', () => {
+  function endpoints(src) {
+    const tmp = mkTmpDir('endpoints');
+    return scanPackageDir(writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' }, { 'index.js': src }))
+      .capabilities.network.endpoints;
+  }
+
+  test('stops at an escape sequence rather than swallowing it', () => {
+    assert.deepEqual(endpoints('const u = "http://localhost:3000\\n";\n'), ['http://localhost:3000']);
+  });
+
+  test('drops sentence punctuation glued to the end', () => {
+    assert.deepEqual(endpoints('const m = "see https://example.com/docs.";\n'), ['https://example.com/docs']);
+  });
+
+  test('splits a comma-joined list into separate endpoints', () => {
+    assert.deepEqual(endpoints('const m = "https://a.example.com/v1,https://b.example.com/v2";\n'),
+      ['https://a.example.com/v1', 'https://b.example.com/v2']);
+  });
+
+  test('rejects a match whose host is not one', () => {
+    assert.deepEqual(endpoints('const m = "https://.";\n'), []);
+  });
+
+  test('keeps localhost, a port, and an IPv4 host', () => {
+    assert.deepEqual(endpoints('const u = "http://127.0.0.1:8080/api";\n'), ['http://127.0.0.1:8080/api']);
+    assert.deepEqual(endpoints('const u = "http://localhost:3000";\n'), ['http://localhost:3000']);
+  });
+});
