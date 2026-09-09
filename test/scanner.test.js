@@ -591,3 +591,30 @@ describe('network endpoint extraction', () => {
     assert.deepEqual(endpoints('const u = "http://localhost:3000";\n'), ['http://localhost:3000']);
   });
 });
+
+// `eval(` alone matched a property named eval and an identifier ending in
+// one, since `$` is not a word character. 71 of 20,039 published packages
+// had nothing else as their dynamic-eval evidence.
+describe('eval must be eval', () => {
+  function present(src) {
+    const tmp = mkTmpDir('eval-scope');
+    return scanPackageDir(writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' }, { 'index.js': src }))
+      .capabilities.dynamicEval.present;
+  }
+
+  test('counts a real call, including the explicit global forms', () => {
+    assert.equal(present('eval(scriptString);\n'), true);
+    assert.equal(present('if (!eval(c)) { throw new Error("x"); }\n'), true);
+    assert.equal(present('const r = window.eval(src);\n'), true);
+    assert.equal(present('global.eval(code);\n'), true);
+  });
+
+  // puppeteer-core's $eval and $$eval are DOM query helpers, redis.eval runs
+  // a Lua script on the server.
+  test('ignores a property named eval and an identifier ending in one', () => {
+    assert.equal(present('async $eval(selector, fn) { return fn(selector); }\n'), false);
+    assert.equal(present('const res = __$$eval(expr);\n'), false);
+    assert.equal(present('const r = await this.redis.eval(script, 1, key);\n'), false);
+    assert.equal(present('page.eval(sel, fn);\n'), false);
+  });
+});
