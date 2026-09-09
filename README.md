@@ -304,6 +304,14 @@ This is static regex-based heuristic analysis, not a sound one.
 - Category detection is a proxy, not ground truth. "exec" is detected via
   `require('child_process')` specifically to avoid colliding with
   unrelated APIs like `RegExp.prototype.exec()`.
+- A plain `.ts` file that imports only types without writing `import type`
+  still counts. `import type` and declaration files are erased because both
+  are unambiguous; this case is not, and telling
+  `import { SpawnOptions } from 'child_process'` from
+  `import { execSync } from 'child_process'` needs type information rather
+  than a naming convention. Measured at 87 of 20,039 packages, and guessing
+  from casing would trade a small number of false positives for false
+  negatives in the category where they cost most.
 - The comment and regex-literal-aware scanner (`blankComments` in
   `lib/scanner.js`) is a hand-rolled character scanner, not a real parser.
   Regex-vs-division is ambiguous in JS without full parsing; see the doc

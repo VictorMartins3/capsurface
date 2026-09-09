@@ -423,6 +423,15 @@ describe('lifecycle script commands', () => {
     assert.equal(m.capabilities.exec.present, true);
   });
 
+  // `node postinstall.js || bash install.sh` was matching the pipe rule on
+  // the second character of `||`, and it was that rule's only match across
+  // 20,039 packages.
+  test('a || fallback is not a pipe, but handing a script to a shell is still execution', () => {
+    assert.equal(pkg({ postinstall: 'bash ./postinstall.sh' }).capabilities.exec.present, true);
+    assert.equal(pkg({ postinstall: 'node postinstall.js || bash install.sh' }).capabilities.exec.present, true);
+    assert.equal(pkg({ postinstall: 'node build.js || echo failed' }).capabilities.exec.present, false);
+  });
+
   test('an ordinary build command grants nothing extra', () => {
     const m = pkg({ postinstall: 'node scripts/build.js' });
     assert.equal(m.capabilities.network.present, false);
