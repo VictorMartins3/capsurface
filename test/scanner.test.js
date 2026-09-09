@@ -450,8 +450,8 @@ describe('lifecycle script commands', () => {
 });
 
 // An executable in `bin` has no reason to carry a .js extension; the shell
-// runs it through its shebang. Across 8,009 published packages, 158 of the
-// 1,248 that ship an executable point bin at a file the extension filter
+// runs it through its shebang. Across a registry-wide sample, 502 of the
+// 4,502 that ship an executable point bin at a file the extension filter
 // never read, and re-reading those files gave 26 of them a capability the
 // manifest had missed. turbo, bunyan, restify, rome and stylus are among
 // them; four packages had no file read at all.

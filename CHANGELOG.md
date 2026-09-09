@@ -180,8 +180,8 @@ Capabilities the scanner was missing:
   absent. It also hid `iso-process`, whose postinstall inlines
   `require('child_process').execSync('npm i', {cwd: join('..', 'esm')})`.
 - Files a package ships in `bin`. They carry no extension because the shell
-  runs them through their shebang, and 375 of the 2,924 packages that ship
-  an executable, 12.8%, point `bin` at a file the extension filter never
+  runs them through their shebang, and 502 of the 4,502 packages that ship
+  an executable, 11.2%, point `bin` at a file the extension filter never
   read. Re-fetching a sample of them and reading the file gave 26 of 158 a
   capability the manifest had missed; `turbo` picked up filesystem, process
   execution and env, `bunyan` picked up network, process execution and

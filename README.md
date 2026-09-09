@@ -169,8 +169,8 @@ inlines `require('child_process').execSync('npm i', {cwd: join('..',
 'esm')})`.
 
 **Files a package ships in `bin` were never read.** They carry no extension
-because the shell runs them through their shebang, and 375 of the 2,924
-packages that ship an executable, 12.8%, point `bin` at a file an
+because the shell runs them through their shebang, and 502 of the 4,502
+packages that ship an executable, 11.2%, point `bin` at a file an
 extension-based filter skips. That file is the code a consumer runs
 directly. Reading it gave 26 of a 158-package sample a capability the
 manifest had missed; for four of them, `turbo` included, no file had been
