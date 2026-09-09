@@ -76,15 +76,10 @@ function cmdScanTree(args) {
   const rootDir = positional[0];
   if (!rootDir) die('usage: capsurface scan-tree <node_modules-dir> --out <manifests-dir> [--boundary <dir>]');
   if (!flags.out) die('--out <manifests-dir> is required');
-  // Checked via stat, not just existsSync: existsSync alone doesn't catch
-  // "path exists but is a file, not a directory" (e.g. a typo'd path that
-  // happens to hit package.json) or "exists but unreadable" (permission
-  // denied). Both previously fell through to discoverPackageDirs, whose
-  // internal readdirSync failures are caught and swallowed, which meant
-  // scan-tree printed "Scanned 0 package install(s)" and exited 0 instead
-  // of failing loudly. That's the exact silent-pass failure mode this
-  // check exists to prevent, just reachable through a different trigger
-  // than a plain nonexistent path.
+  // stat, not existsSync: a path that is a file, or unreadable, otherwise
+  // falls through to discoverPackageDirs, which swallows readdir failures,
+  // and scan-tree reports 0 packages and exits 0. Silent pass is the one
+  // failure mode a gate must not have.
   let rootStat;
   try {
     rootStat = fs.statSync(rootDir);
@@ -130,14 +125,11 @@ function cmdScanTree(args) {
     usedFilenames.add(filename);
     writeJson(path.join(flags.out, filename), manifest);
   }
-  // The install-time surface goes first, before the risk ranking. Scanning a
-  // realistic 215-package service showed why: exactly one package in it ran
-  // anything at install time (bcrypt, via node-pre-gyp), and because bcrypt's
-  // own source touches nothing else it scored 4 and sorted below twenty
-  // higher-scoring packages that cannot execute during install at all. The
-  // aggregate score answers "how much can this package do"; a reviewer's
-  // first question is "what runs on npm install", which is a much shorter
-  // list and the one that decides blast radius.
+  // Install-time surface before the risk ranking. The score answers "how
+  // much can this package do"; a reviewer's first question is "what runs on
+  // npm install", a much shorter list and the one that decides blast
+  // radius. bcrypt scores 4 and would sort below twenty packages that
+  // cannot execute during install at all.
   const installTime = manifests.filter(
     (m) => m.capabilities.lifecycleScripts && m.capabilities.lifecycleScripts.installTriggering
   );
@@ -170,11 +162,9 @@ function cmdScanTree(args) {
 }
 
 /**
- * Load every manifest JSON file in a directory, grouped by package name.
- * A name can map to more than one manifest when the same package is
- * installed at multiple versions/locations in the tree (see
- * discoverPackageDirs), e.g. two different lodash versions present, a
- * routine outcome of dependency resolution, not an edge case.
+ * Load every manifest in a directory, grouped by package name. One name can
+ * hold several: two lodash versions in one tree is a routine outcome of
+ * dependency resolution, not an edge case.
  */
 function loadManifestsFromDir(dir) {
   const byName = new Map();
@@ -188,12 +178,10 @@ function loadManifestsFromDir(dir) {
 }
 
 /**
- * Load capsurface.lock.json into the same Map<name, Manifest[]> shape used
- * by loadManifestsFromDir. Accepts both the current schema
- * (`packages: {name: Manifest[]}`) and the original schema
- * (`packages: {name: Manifest}`) so an existing committed lock file from an
- * earlier version of this tool keeps working rather than needing a manual
- * migration.
+ * Load capsurface.lock.json into the Map<name, Manifest[]> shape
+ * loadManifestsFromDir uses. Both the current schema and the original
+ * one-manifest-per-name schema are accepted, so a lock file committed by an
+ * earlier version keeps working without a migration step.
  */
 function loadBaseline(lock) {
   const byName = new Map();
