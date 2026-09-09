@@ -7,6 +7,7 @@ const { scanPackageDir } = require('../lib/scanner');
 const { diffManifests, unionOfManifests } = require('../lib/diff');
 const { discoverPackageDirs } = require('../lib/discovery');
 const { INSTALL_TRIGGERING_SCRIPT_KEYS } = require('../lib/categories');
+const { RULES_VERSION } = require('../lib/rules-version');
 
 function die(msg) {
   console.error(`capsurface: ${msg}`);
@@ -249,6 +250,25 @@ function cmdCheck(args) {
   const lock = readJson(baselineFile);
   const baselineByName = loadBaseline(lock);
   const currentByName = loadManifestsFromDir(manifestsDir);
+
+  // A baseline records what the rules said when it was approved. If the
+  // rules have changed since, the same dependency produces a different
+  // manifest, so a difference here is not evidence about your dependencies.
+  // Saying which it is matters: "we changed the rules" and "a dependency
+  // changed" are different events.
+  const baselineRules = new Set();
+  for (const manifests of baselineByName.values()) {
+    for (const m of manifests) baselineRules.add(m.rulesVersion || 'pre-versioning');
+  }
+  const staleRules = [...baselineRules].filter((v) => v !== RULES_VERSION);
+  if (staleRules.length) {
+    console.error(
+      `capsurface: WARNING: this baseline was written by different scanning rules ` +
+        `(${staleRules.join(', ')}, now ${RULES_VERSION}). Capabilities can appear or ` +
+        `disappear from a rule change alone. Re-run "capsurface baseline" and review ` +
+        `the diff before trusting this result.\n`
+    );
+  }
 
   let anyEscalation = false;
   const newPackages = [];

@@ -111,3 +111,38 @@ describe('end-to-end scan / baseline / check pipeline', () => {
     assert.equal(report.escalated, true);
   });
 });
+
+// A baseline records what the rules said when it was approved. Change a
+// rule and the same dependency produces a different manifest, so the
+// baseline silently starts meaning something else. That happened while
+// tuning this tool against real projects and nothing reported it.
+describe('rules-version drift', () => {
+  test('warns when the baseline was written by different rules', () => {
+    const tmp = mkTmpDir('rules-drift');
+    writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
+    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
+
+    // Rewrite the baseline as if an older ruleset had produced it.
+    const lock = JSON.parse(fs.readFileSync(path.join(tmp, 'lock.json'), 'utf8'));
+    for (const arr of Object.values(lock.packages)) {
+      for (const m of arr) m.rulesVersion = 'deadbeef0000';
+    }
+    fs.writeFileSync(path.join(tmp, 'lock.json'), JSON.stringify(lock));
+
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'cur/p@1.0.0.json')]);
+    const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json')]);
+    assert.match(res.stderr, /different scanning rules/);
+  });
+
+  test('stays quiet when the baseline matches the current rules', () => {
+    const tmp = mkTmpDir('rules-match');
+    writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
+    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'cur/p@1.0.0.json')]);
+    const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json')]);
+    assert.ok(!/different scanning rules/.test(res.stderr));
+    assert.equal(res.status, 0);
+  });
+});
