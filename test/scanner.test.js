@@ -9,6 +9,30 @@ const { blankComments, blankErasedSyntax, excerpt, looksLikeBuildArtifact, scanP
 const { mkTmpDir, writePackage } = require('./helpers');
 
 describe('blankComments', () => {
+  // The output is built by splicing blanks over the comment ranges, so the
+  // cases that matter are the ones where a range is open at the end or
+  // absent entirely.
+  test('handles a comment left unterminated at end of file', () => {
+    const src = 'a; /* never closed';
+    const out = blankComments(src);
+    assert.equal(out.length, src.length);
+    assert.ok(!out.includes('closed'));
+    assert.ok(out.startsWith('a; '));
+  });
+
+  test('returns the input unchanged when there is no comment', () => {
+    const src = 'const a = 1;\nconst b = "https://example.com/x";\n';
+    assert.equal(blankComments(src), src);
+  });
+
+  test('keeps every line break when a block comment spans lines', () => {
+    const src = 'a /* one\ntwo\nthree */ b;';
+    const out = blankComments(src);
+    assert.equal(out.length, src.length);
+    assert.equal(out.split('\n').length, src.split('\n').length);
+    assert.ok(!out.includes('two'));
+  });
+
   test('blanks // line comments but preserves length/newlines', () => {
     const src = "const x = 1; // require('https')\nconst y = 2;\n";
     const out = blankComments(src);
