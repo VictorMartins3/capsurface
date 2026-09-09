@@ -119,6 +119,116 @@ long tail of one-offs: cypress, sharp, puppeteer, fsevents, workerd, re2,
 core-js, geckodriver, edgedriver. Under npm 12 that is the list every
 project now has to allowlist.
 
+### Validated against 20,039 packages sampled across the registry
+
+The 16-project campaign above reads dependency trees, which is the
+population this tool runs on but not the population it can be wrong about.
+This one samples the registry itself, stratified so the sample is not just
+popular packages: the dependency closure of 245 well-known seeds, a uniform
+random draw from all 4,431,335 published names, scoped packages, recent
+publishes taken from the changes feed, and packages found by searching for
+native and install-script tooling. 22,696 tarballs fetched, 20,039 with
+source to read, 0 scan errors.
+
+Eleven rules were wrong. Each was found by attributing every evidence entry
+to the rule that produced it, then reading what that rule actually matches
+at scale, and each fix was measured by scanning the whole corpus with and
+without it.
+
+Capabilities the scanner was crediting that do not exist:
+
+- TypeScript syntax the compiler erases. A `.d.ts` file emits no JavaScript
+  and `import type` is erased wherever it appears, but both were granting
+  capabilities: `typescript` read as having process execution because of
+  `import { ChildProcess } from 'child_process'` in a declaration file.
+  23 packages of 5,761 in the sample at the time.
+- `.node` matched any string literal ending that way, so
+  `if (!source.endsWith('.node'))` counted as loading native code. Keying on
+  the load instead removed 14 of those and found 13 packages it had been
+  missing, `lmdb`, `bufferutil`, `argon2` and `classic-level` among them,
+  which reach native code through `node-gyp-build` and `bindings`.
+- `eval(` matched a property named eval and any identifier ending in one,
+  because `$` is not a word character: puppeteer-core's `$eval`, Redis's
+  `redis.eval(...)` running a Lua script, which is how `rate-limiter-flexible`
+  tripped it. 71 packages had nothing else as evidence.
+- `new Function("return this")` is how bundlers reach the global object. Its
+  argument is a constant, so nothing an attacker chose is executed, and it
+  was the entire dynamic-eval evidence for 122 packages.
+- A credential path was counted when it was only named. 34 of the 75
+  packages with that capability had no access at all: shikiji's syntax
+  grammar listing `.ssh/config` as a file type, denylist regexes, a
+  placeholder `C:/Users/your-name/.ssh/id_rsa`, and a security scanner's own
+  documentation of the attack it detects.
+- `echo` cannot execute anything, but a postinstall containing only one
+  still marked the package as running code at install time. `aethercall` was
+  CRITICAL on that basis.
+
+Capabilities the scanner was missing:
+
+- Lifecycle script commands were recorded and never matched against
+  anything. That hid the one package in the corpus that beacons out on
+  install, `xhjxhjtestrce123`, whose preinstall and postinstall both run
+  `curl http://<host>/?host=...` and whose manifest said network access was
+  absent. It also hid `iso-process`, whose postinstall inlines
+  `require('child_process').execSync('npm i', {cwd: join('..', 'esm')})`.
+- Files a package ships in `bin`. They carry no extension because the shell
+  runs them through their shebang, and 375 of the 2,924 packages that ship
+  an executable, 12.8%, point `bin` at a file the extension filter never
+  read. Re-fetching a sample of them and reading the file gave 26 of 158 a
+  capability the manifest had missed; `turbo` picked up filesystem, process
+  execution and env, `bunyan` picked up network, process execution and
+  dynamic eval. For four of them the scanner had read no file at all and
+  reported a risk score of 0.
+
+Reporting fixes:
+
+- Evidence snippets now centre on the match. A minified bundle is one
+  enormous line, so the leading 200 characters routinely showed text with no
+  relation to what matched: yarn's `lib/cli.js` reported `process.binding()`
+  with an excerpt of an inline-import comment from elsewhere in the line.
+- "Nothing was read" and "nothing was found" produced the same empty
+  manifest, and 12.5% of the sample reads that way. The manifest now records
+  `noReadableSource`, and it joins obfuscation and oversized files in the
+  set of diff changes that gate, because all three mean there is code here
+  we could not see.
+- 1,919 of 31,128 extracted network endpoints carried junk: an escape
+  sequence, since `"http://localhost:3000\n"` in source is a backslash and
+  an n; sentence punctuation from an error message; markdown angle brackets;
+  and a comma joining two URLs in one config string. `https://.` was also
+  being recorded, because the host pattern accepted a bare dot.
+- The obfuscation signal was reading generated-but-readable lines as packed
+  code: declaration files with long type unions (22 packages, `twilio` and
+  `typeorm` among them), tsc's `exports.a = exports.b = ...` re-export
+  chain, ESM barrel re-exports, and a single long regex literal. Build
+  output conventions were also incomplete; `bundles/`, `fesm2022/`,
+  `esm2020/`, `coverage/` and `.yarn/releases/` are machine-generated and
+  were being read as hand-authored source.
+
+What the sample says about the ecosystem. 469 of 20,039 packages run
+something at install time, 2.3%. 185 of those run a JavaScript file, 111 are
+node-gyp or prebuild, 21 inline code with `node -e`, 8 only print a message,
+and exactly one pipes a download into a shell. Of the 20,039, 37 are
+CRITICAL and 202 HIGH. The CRITICAL set is dominated by a shape that barely
+existed a year ago: agent and MCP command-line tools that run a postinstall,
+talk to the network, and read an API key.
+
+### Does an ordinary upgrade still pass
+
+Rebuilt as a standing regression: take 82 popular packages at their last
+release before 2024-09-01 and diff the current release against it. Every
+escalation is a false alarm a real team would have triaged.
+
+| | escalations |
+|---|---|
+| Before the fixes above | 5 |
+| After | 3 |
+
+Of the three that remain, `prisma` is correct (its `preinstall` really did
+change across a major, and it began reading `PRISMA_PLATFORM_AUTH_FILE`).
+`fastify` reports a real read of `process.env.GITHUB_TOKEN`, in
+`scripts/validate-ecosystem-links.js`, a repository CI script it publishes
+inside its tarball.
+
 ### Changed
 
 
@@ -162,11 +272,32 @@ question a reviewer has is "what runs on npm install".
 
 ### Performance
 
-- `blankComments`'s per-character identifier and whitespace checks, about
-  16% of total scan time on a 462 MB real-world corpus by profile,
-  replaced with charCode arithmetic instead of the regex engine. Measured
-  18% CPU-time reduction on the same corpus, isolated on identical Node
-  version and machine.
+Measured by profiling a 2,500-package scan and verified by re-scanning the
+full 20,039-package corpus: every manifest is identical to the character
+after each change. 84 to 161 packages/s single threaded, and the whole
+corpus in 37.5s rather than 53.8s.
+
+- `blankComments` appended every character of every scanned file to an
+  array and joined it, which for a megabyte bundle means a million-element
+  array and the garbage collection that follows. It was 28% of scan time.
+  Only comment characters ever differ from the input, so the state machine
+  now records where the comments are and the result is assembled from
+  slices with blanks spliced over those ranges; a file with no comment is
+  returned unchanged.
+- Every file was split into lines twice, once blanked and once original, to
+  use the original only where evidence gets recorded. Blanking preserves
+  length and line breaks, so both share their boundaries: they are walked
+  and the original is sliced on demand.
+- The contextual rule added for credential paths ran its expensive context
+  regex before its cheap match regex, on every line of every file, 12% of
+  scan time.
+- A capability category already present with a full evidence quota cannot
+  learn anything from another match, but all of its patterns still ran
+  against every remaining line. Saturated categories now drop out.
+- Earlier: `blankComments`'s per-character identifier and whitespace checks,
+  about 16% of total scan time on a 462 MB corpus by profile, replaced with
+  charCode arithmetic instead of the regex engine, for an 18% CPU-time
+  reduction on that corpus.
 
 ### Security
 
@@ -178,8 +309,8 @@ question a reviewer has is "what runs on npm install".
 
 ### Verification
 
-- 73 automated tests (`npm test`) covering the discovery, diff, and
-  comment-scanning bugs above as regressions.
+- 119 automated tests (`npm test`) covering the discovery, diff,
+  comment-scanning and rule bugs above as regressions.
 - Benchmarked against a real 118-package corpus of popular libraries and a
   462 MB / 428-package build-tooling tree: 0 false CRITICAL flags, down
   from 2 before the fixes above, sub-second scan time on the small corpus.
