@@ -42,19 +42,43 @@ worth recording and not worth blocking, so `env` carries
 `gatesOnAppear: false`. Keep new rules on this split. Record generously,
 gate narrowly.
 
-**Rules key on imports, not call sites.** `exec` matches
+**Rules key on acquisition, not on a name.** `exec` matches
 `require('child_process')`, not `exec(`, because method names collide with
-unrelated APIs. `RegExp.prototype.exec`, lru-cache's `fetch(k, opts)` and
-rxjs's `connectable.connect()` all produced false positives when a rule
-matched a bare call. If a new rule must match a call site, expect it to be
-wrong on a corpus and check before shipping it.
+unrelated APIs. `RegExp.prototype.exec`, lru-cache's `fetch(k, opts)`,
+rxjs's `connectable.connect()`, puppeteer's `$eval` and `redis.eval()` all
+produced false positives when a rule matched a bare call, and
+`endsWith('.node')` did the same for native code. If a new rule must match a
+call site, expect it to be wrong on a corpus and check before shipping it.
+
+## Rule forms in `categories.js`
+
+A category pattern is either a plain `RegExp` or `{ match, context }`. The
+second counts only when `context` also matches, within a window around the
+match rather than anywhere on the line: a minified bundle is one enormous
+line, so a line-scoped context is satisfied by anything in the file. That is
+what separates `path.join(dir, '.npmrc')` from a help string mentioning
+`~/.ssh/config`. Put the cheap discriminator in `match`; it runs first.
+
+Three things are matched outside the category loop:
+
+- `ERASED_SYNTAX` blanks TypeScript the compiler removes, `import type` and
+  every import in a `.d.ts`, before any rule sees it. The file is still
+  scanned, because `require('./x.d.ts')` executes.
+- `INSTALL_COMMAND_RULES` matches lifecycle script commands, which are shell
+  lines rather than JavaScript. Commands are also run through the ordinary
+  JavaScript rules, which is what reaches an inline `node -e` payload. Only
+  install-triggering scripts contribute capabilities; `prepare` does not run
+  for a registry install.
+- `GENERATED_LONG_LINE` and `BUILD_ARTIFACT_PATH` decide what the
+  obfuscation signal ignores. Both describe machine-generated output, and
+  neither suppresses capability matching.
 
 ## Manifest shape
 
 ```jsonc
 {
   "schemaVersion": 3,
-  "rulesVersion": "89b2f56e8fbf",  // hash of the rules that produced this
+  "rulesVersion": "ce7db165b1f1",  // hash of the rules that produced this
   "name": "pkg", "version": "1.2.3",
   "sourceFilesScanned": 12, "sourceFilesSkipped": 0,
   "capabilities": {
@@ -63,7 +87,8 @@ wrong on a corpus and check before shipping it.
     "env":         { "present": true, "evidence": [], "vars": [] },
     "lifecycleScripts": { "present": true, "installTriggering": true, "scripts": {} },
     "obfuscationSignal": { "present": false, "evidence": [] },
-    "skippedLargeFiles": { "present": false, "count": 0, "files": [] }
+    "skippedLargeFiles": { "present": false, "count": 0, "files": [] },
+    "noReadableSource":  { "present": false }  // nothing was read, ≠ nothing found
     // plus exec, dynamicEval, nativeFfi, sensitiveTargets
   },
   "riskScore": 14,
@@ -83,10 +108,14 @@ not just fixtures. The invariants:
 
 1. `npm test` passes.
 2. `./examples/run-demo.sh` still fails the gate.
-3. A routine dependency upgrade still produces zero escalations. A gate
-   that fires on ordinary upgrades gets switched off, so this matters as
-   much as detection.
-4. Scanning real trees produces no new CRITICAL on benign packages.
+3. Routine dependency upgrades still pass. A gate that fires on ordinary
+   upgrades gets switched off, so this matters as much as detection. The
+   standing measurement is 82 popular packages diffed across two years:
+   3 escalations, each explainable (see CHANGELOG.md). A change that raises
+   that number needs a reason.
+4. Scanning real packages produces no new CRITICAL on benign ones. Measure
+   it: scan a corpus with and without the change and diff the manifests.
+   Every rule change in CHANGELOG.md carries the number that produced.
 
 `CHANGELOG.md` records the corpora these were measured against and the
 numbers each change produced.
