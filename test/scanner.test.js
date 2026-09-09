@@ -590,6 +590,16 @@ describe('credential paths must be used, not just named', () => {
   test('env credential rules are unaffected; they are already access-shaped', () => {
     assert.equal(present('const t = process.env.NPM_TOKEN;\n'), true);
   });
+
+  // A minified bundle is one enormous line, so a context scoped to the whole
+  // line is satisfied by anything anywhere in the file. @claudiolabs/claudin
+  // was CRITICAL because its bundle carries '~/.ssh/config' in a CLI help
+  // string and calls something ending in `open(` tens of kilobytes away.
+  test('the path operation has to be near the path, not merely on the same line', () => {
+    const far = 'const pad = "' + 'x'.repeat(400) + '";';
+    assert.equal(present('openSync(a);\n' + far + '\nconst help = "a host alias from ~/.ssh/config";\n'), false);
+    assert.equal(present('const h = "~/.ssh/id_rsa"; readFileSync(h);\n'), true);
+  });
 });
 
 // Endpoints feed the diff, so junk glued to a URL literal shows up in a
