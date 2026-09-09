@@ -146,3 +146,66 @@ describe('rules-version drift', () => {
     assert.equal(res.status, 0);
   });
 });
+
+// npm 12 and its peers block install scripts unless a project lists what may
+// run one. Producing the list is mechanical; deciding what belongs on it
+// needs to know what each script reaches for, which the manifest holds.
+describe('capsurface allowlist', () => {
+  function treeWith(tmp, packages) {
+    for (const [rel, pkgJson, files] of packages) {
+      writePackage(tmp, path.join('node_modules', rel), pkgJson, files);
+    }
+    const out = path.join(tmp, 'manifests');
+    const res = runCli(['scan-tree', path.join(tmp, 'node_modules'), '--out', out]);
+    assert.equal(res.status, 0, res.stderr);
+    return out;
+  }
+
+  const NATIVE = ['native-thing', { name: 'native-thing', version: '2.0.0', scripts: { install: 'node-gyp rebuild' } },
+    { 'index.js': "const cp = require('child_process');\nfetch('https://binaries.example.com/x');\n" }];
+  const QUIET = ['quiet-lib', { name: 'quiet-lib', version: '1.0.0' }, { 'index.js': "require('fs');\n" }];
+
+  test('lists only the packages that run something at install time, and says why', () => {
+    const tmp = mkTmpDir('allowlist');
+    const res = runCli(['allowlist', treeWith(tmp, [NATIVE, QUIET])]);
+    assert.equal(res.status, 0);
+    assert.match(res.stdout, /1 of 2 installed package\(s\) run code at install time/);
+    assert.match(res.stdout, /"allowScripts"/);
+    assert.match(res.stdout, /"native-thing@2\.0\.0"/);
+    assert.ok(!res.stdout.includes('quiet-lib@1.0.0'), 'a package with no install script is not on the list');
+    assert.match(res.stdout, /install\s+node-gyp rebuild/);
+    assert.match(res.stdout, /reaches\s+.*process execution/);
+    assert.match(res.stdout, /talks to\s+https:\/\/binaries\.example\.com\/x/);
+  });
+
+  test('--names drops the version pin', () => {
+    const tmp = mkTmpDir('allowlist-names');
+    const res = runCli(['allowlist', treeWith(tmp, [NATIVE]), '--names']);
+    assert.match(res.stdout, /"native-thing"/);
+    assert.ok(!res.stdout.includes('"native-thing@2.0.0"'));
+  });
+
+  test('--format pnpm emits the workspace key', () => {
+    const tmp = mkTmpDir('allowlist-pnpm');
+    const res = runCli(['allowlist', treeWith(tmp, [NATIVE]), '--format', 'pnpm']);
+    assert.match(res.stdout, /onlyBuiltDependencies:/);
+    assert.match(res.stdout, /- native-thing@2\.0\.0/);
+  });
+
+  test('--format json is machine readable and carries the rules fingerprint', () => {
+    const tmp = mkTmpDir('allowlist-json');
+    const res = runCli(['allowlist', treeWith(tmp, [NATIVE, QUIET]), '--format', 'json']);
+    const payload = JSON.parse(res.stdout);
+    assert.deepEqual(payload.allow, ['native-thing@2.0.0']);
+    assert.equal(payload.packagesScanned, 2);
+    assert.equal(payload.packages[0].scripts.install, 'node-gyp rebuild');
+    assert.ok(payload.rulesVersion);
+  });
+
+  test('says so when a tree needs no allowlist at all', () => {
+    const tmp = mkTmpDir('allowlist-empty');
+    const res = runCli(['allowlist', treeWith(tmp, [QUIET])]);
+    assert.equal(res.status, 0);
+    assert.match(res.stdout, /Nothing to allow/);
+  });
+});

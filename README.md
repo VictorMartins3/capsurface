@@ -34,7 +34,11 @@ writes the native allowlist format for all four package managers, and it
 has a `--diff` mode for capabilities gained across upgrades. If your
 question is "which install scripts should I approve", use that.
 
-capsurface covers what is left after that door closes. The Semgrep writeup
+capsurface does both halves of that. `capsurface allowlist` writes the list
+for npm, pnpm and JSON consumers, with what each package reaches for
+attached so the approval is an informed one rather than a rubber stamp.
+
+The more interesting half is what is left after that door closes. The Semgrep writeup
 of the npm 12 change puts it plainly: typosquatting, dependency confusion
 and "plain old malicious runtime code" all survive it. Malicious runtime
 code is not hypothetical, it is what the event-stream compromise actually
@@ -394,6 +398,41 @@ committed baseline: new capability category, changed lifecycle script,
 new network endpoint, new env var referenced. Add `--fail-on-new` to also
 fail on packages not yet in the baseline, forcing an explicit
 review-and-rebaseline step.
+
+Produce the install-script allowlist npm 12 requires:
+
+```bash
+capsurface allowlist .capsurface/manifests
+```
+
+```
+5 of 666 installed package(s) run code at install time.
+
+Add to package.json:
+
+  "allowScripts": [
+    "bcrypt@5.1.1",
+    "esbuild@0.25.12",
+    "esbuild@0.28.2",
+    "msgpackr-extract@3.0.4",
+    "sharp@0.33.5"
+  ]
+
+What each one does at install time, from its own source:
+
+  esbuild@0.28.2  (esbuild)
+      postinstall node install.js
+      reaches     filesystem, network, process execution, env
+      talks to    https://registry.npmjs.org/..., https://nodejs.org/en/download/
+      ⚠ HIGH: install-time lifecycle script combined with process execution.
+```
+
+Writing the list is the easy half and every tool in this space does it.
+The half that takes judgement is deciding what belongs on it, so each entry
+carries what that package's own source reaches for and where it talks to,
+from the same manifests the gate uses. `--format pnpm` emits
+`onlyBuiltDependencies` instead, `--format json` is machine readable and
+carries the rules fingerprint, and `--names` drops the version pin.
 
 Diff two manifests directly:
 

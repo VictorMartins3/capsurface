@@ -241,6 +241,126 @@ function cmdBaseline(args) {
   console.log('Review this file into version control as the approved capability surface.');
 }
 
+// npm 12 and its peers block install scripts unless a project lists the
+// packages allowed to run one. Producing that list is mechanical; deciding
+// what belongs on it is not, and the decision needs to know what each script
+// actually reaches for. That is what the manifest already holds.
+const CAPABILITY_LABELS = {
+  filesystem: 'filesystem',
+  network: 'network',
+  exec: 'process execution',
+  env: 'env',
+  dynamicEval: 'dynamic eval',
+  nativeFfi: 'native code',
+  sensitiveTargets: 'credential paths',
+};
+
+function installTimeEntries(manifestsDir) {
+  const byName = loadManifestsFromDir(manifestsDir);
+  const seen = new Set();
+  const entries = [];
+  let total = 0;
+  for (const manifests of byName.values()) {
+    for (const m of manifests) {
+      total++;
+      if (!m.capabilities.lifecycleScripts.installTriggering) continue;
+      const id = `${m.name}@${m.version}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      entries.push(m);
+    }
+  }
+  return { entries, total };
+}
+
+function cmdAllowlist(args) {
+  const { positional, flags } = parseFlags(args);
+  const manifestsDir = positional[0];
+  if (!manifestsDir) {
+    die('usage: capsurface allowlist <manifests-dir> [--format npm|pnpm|json] [--names] [--out <file>]');
+  }
+  const format = flags.format || 'npm';
+  const nameOnly = flags.names === true;
+  const { entries, total } = installTimeEntries(manifestsDir);
+
+  const ids = entries
+    .map((m) => (nameOnly ? m.name : `${m.name}@${m.version}`))
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .sort();
+
+  if (format === 'json') {
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      rulesVersion: RULES_VERSION,
+      packagesScanned: total,
+      allow: ids,
+      packages: entries.map((m) => ({
+        name: m.name,
+        version: m.version,
+        installPath: m.installPath,
+        scripts: Object.fromEntries(
+          INSTALL_TRIGGERING_SCRIPT_KEYS
+            .filter((k) => m.capabilities.lifecycleScripts.scripts[k])
+            .map((k) => [k, m.capabilities.lifecycleScripts.scripts[k]])
+        ),
+        capabilities: Object.keys(CAPABILITY_LABELS).filter((k) => m.capabilities[k] && m.capabilities[k].present),
+        endpoints: (m.capabilities.network.endpoints || []).slice(0, 5),
+        riskScore: m.riskScore,
+        riskFlags: m.riskFlags,
+      })),
+    };
+    const text = JSON.stringify(payload, null, 2);
+    if (flags.out) {
+      writeJson(String(flags.out), payload);
+      console.log(`Wrote ${ids.length} allowlist entr(ies) to ${flags.out}`);
+    } else {
+      console.log(text);
+    }
+    return;
+  }
+
+  const body =
+    format === 'pnpm'
+      ? ['onlyBuiltDependencies:', ...ids.map((id) => `  - ${id}`)].join('\n')
+      : ['  "allowScripts": [', ids.map((id) => `    ${JSON.stringify(id)}`).join(',\n'), '  ]'].join('\n');
+  const where = format === 'pnpm' ? 'pnpm-workspace.yaml' : 'package.json';
+
+  console.log(`${entries.length} of ${total} installed package(s) run code at install time.\n`);
+  if (!entries.length) {
+    console.log('Nothing to allow. Every dependency in this tree installs without running anything.');
+    return;
+  }
+  console.log(`Add to ${where}:\n`);
+  console.log(body + '\n');
+  console.log('What each one does at install time, from its own source:\n');
+
+  for (const m of entries.slice().sort((a, b) => b.riskScore - a.riskScore)) {
+    console.log(`  ${m.name}@${m.version}${m.installPath ? `  (${m.installPath})` : ''}`);
+    for (const key of INSTALL_TRIGGERING_SCRIPT_KEYS) {
+      const cmd = m.capabilities.lifecycleScripts.scripts[key];
+      if (cmd) console.log(`      ${key.padEnd(12)}${cmd}`);
+    }
+    const caps = Object.keys(CAPABILITY_LABELS)
+      .filter((k) => m.capabilities[k] && m.capabilities[k].present)
+      .map((k) => CAPABILITY_LABELS[k]);
+    if (caps.length) console.log(`      ${'reaches'.padEnd(12)}${caps.join(', ')}`);
+    // Concrete hosts first: an endpoint built from a template literal is
+    // truncated at the interpolation and tells a reviewer less than a plain
+    // one does.
+    const endpoints = (m.capabilities.network.endpoints || [])
+      .slice()
+      .sort((a, b) => Number(a.includes('${')) - Number(b.includes('${')))
+      .slice(0, 3)
+      .map((e) => (e.length > 60 ? e.slice(0, 57) + '...' : e));
+    if (endpoints.length) console.log(`      ${'talks to'.padEnd(12)}${endpoints.join(', ')}`);
+    for (const f of m.riskFlags) console.log(`      ⚠ ${f}`);
+    console.log('');
+  }
+
+  console.log('This list is the blast radius of `npm install` for this tree. Anything not on');
+  console.log('it cannot execute during install at all, whatever else its code can do.');
+}
+
 function cmdCheck(args) {
   const { positional, flags } = parseFlags(args);
   const manifestsDir = positional[0];
@@ -377,6 +497,8 @@ function main() {
       return cmdCheck(rest);
     case 'diff':
       return cmdDiff(rest);
+    case 'allowlist':
+      return cmdAllowlist(rest);
     default:
       console.log(`capsurface: capability-aware supply-chain scanner
 
@@ -386,6 +508,7 @@ Usage:
   capsurface baseline <manifests-dir> [--out capsurface.lock.json]
   capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new]
   capsurface diff <baseline-manifest.json> <current-manifest.json>
+  capsurface allowlist <manifests-dir> [--format npm|pnpm|json] [--names] [--out <file>]
 `);
       process.exit(cmd ? 2 : 0);
   }
