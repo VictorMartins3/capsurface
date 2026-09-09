@@ -486,3 +486,24 @@ describe('install commands that cannot execute anything', () => {
     assert.equal(m.capabilities.lifecycleScripts.installTriggering, true);
   });
 });
+
+// `new Function("return this")` is how bundlers reach the global object. The
+// argument is a constant, so nothing an attacker chose is executed, and it
+// was the whole of the dynamic-eval evidence for 122 of 11,235 packages.
+describe('the globalThis polyfill is not dynamic code execution', () => {
+  function pkg(src) {
+    const tmp = mkTmpDir('global-poly');
+    return scanPackageDir(writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' }, { 'index.js': src }));
+  }
+
+  test('a constant return-this argument does not count', () => {
+    assert.equal(pkg('var g = g || new Function("return this")();\n').capabilities.dynamicEval.present, false);
+    assert.equal(pkg("var g = new Function('return globalThis')();\n").capabilities.dynamicEval.present, false);
+  });
+
+  test('anything else passed to Function still counts', () => {
+    assert.equal(pkg('var f = new Function("return " + input)();\n').capabilities.dynamicEval.present, true);
+    assert.equal(pkg('var f = new Function(`return ${s}`)();\n').capabilities.dynamicEval.present, true);
+    assert.equal(pkg('new Function("return this;fetch(x)")();\n').capabilities.dynamicEval.present, true);
+  });
+});
