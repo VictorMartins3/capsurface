@@ -152,3 +152,25 @@ describe('unionOfManifests', () => {
     assert.equal(union.capabilities.lifecycleScripts.installTriggering, true);
   });
 });
+
+// "Nothing was read" and "nothing was found" produce the same empty
+// manifest, so a dependency whose next version ships nothing the scanner can
+// read must not pass as unchanged. This is the same reasoning as the
+// obfuscation and oversized-file cases: a loss of visibility, not an
+// observation about the code.
+describe('a version that becomes unreadable', () => {
+  test('escalates when the previous version had source', () => {
+    const tmp = mkTmpDir('unreadable');
+    const before = scan(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+    const after = scan(tmp, 'v2', { name: 'p', version: '1.0.1' }, { 'README.md': '# p\n' });
+    assert.equal(after.capabilities.noReadableSource.present, true);
+    assert.equal(diffManifests(before, after).escalated, true);
+  });
+
+  test('does not escalate when it was already unreadable', () => {
+    const tmp = mkTmpDir('unreadable-both');
+    const before = scan(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'README.md': '# p\n' });
+    const after = scan(tmp, 'v2', { name: 'p', version: '1.0.1' }, { 'README.md': '# p v2\n' });
+    assert.equal(diffManifests(before, after).escalated, false);
+  });
+});

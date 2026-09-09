@@ -394,3 +394,62 @@ describe('lifecycle script commands', () => {
     assert.equal(m.capabilities.lifecycleScripts.installTriggering, false);
   });
 });
+
+// An executable in `bin` has no reason to carry a .js extension; the shell
+// runs it through its shebang. Across 8,009 published packages, 158 of the
+// 1,248 that ship an executable point bin at a file the extension filter
+// never read, and re-reading those files gave 26 of them a capability the
+// manifest had missed. turbo, bunyan, restify, rome and stylus are among
+// them; four packages had no file read at all.
+describe('executables and unreadable packages', () => {
+  function pkg(pkgJson, files) {
+    const tmp = mkTmpDir('bin-cov');
+    return scanPackageDir(writePackage(tmp, 'pkg', Object.assign({ name: 'pkg', version: '1.0.0' }, pkgJson), files));
+  }
+
+  test('reads a bin target with no extension', () => {
+    const m = pkg({ bin: { tool: './bin/tool' } }, {
+      'index.js': 'module.exports = {};\n',
+      'bin/tool': "#!/usr/bin/env node\nrequire('child_process').execSync('id');\n",
+    });
+    assert.equal(m.capabilities.exec.present, true);
+  });
+
+  test('reads an extension-less file with a node shebang even without a bin entry', () => {
+    const m = pkg({}, {
+      'index.js': 'module.exports = {};\n',
+      'bin/cli': "#!/usr/bin/env node\nrequire('https');\n",
+    });
+    assert.equal(m.capabilities.network.present, true);
+  });
+
+  test('leaves an ordinary extension-less file alone', () => {
+    const m = pkg({}, { 'index.js': 'module.exports = {};\n', LICENSE: 'MIT '.repeat(50) });
+    assert.equal(m.sourceFilesScanned, 1);
+  });
+
+  // A bin entry is attacker-controlled text.
+  test('does not follow a bin target that escapes the package', () => {
+    const m = pkg({ bin: '../../../etc/passwd' }, { 'index.js': 'module.exports = {};\n' });
+    assert.equal(m.sourceFilesScanned, 1);
+  });
+
+  test('does not throw when bin points at a file that was not shipped', () => {
+    const m = pkg({ bin: { a: './missing' } }, { 'index.js': 'module.exports = {};\n' });
+    assert.equal(m.sourceFilesScanned, 1);
+  });
+
+  // "Nothing was read" and "nothing was found" produce the same empty
+  // manifest; 14% of a random registry sample reads that way.
+  test('says so when no source file was read at all', () => {
+    const m = pkg({}, { 'README.md': '# hi\n' });
+    assert.equal(m.sourceFilesScanned, 0);
+    assert.equal(m.capabilities.noReadableSource.present, true);
+    assert.ok(m.riskFlags.some((f) => f.includes('nothing was scanned')));
+  });
+
+  test('stays quiet when there is source to read', () => {
+    const m = pkg({}, { 'index.js': 'module.exports = {};\n' });
+    assert.equal(m.capabilities.noReadableSource.present, false);
+  });
+});
