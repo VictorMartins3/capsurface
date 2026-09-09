@@ -221,3 +221,39 @@ describe('CRITICAL requires credential access, not any env access', () => {
     assert.ok(m.riskFlags.some((f) => f.startsWith('CRITICAL')));
   });
 });
+
+// Found by scanning 3,079 real package installs: 119 of them carried an
+// obfuscation flag, and the long lines were documentation, one big regex,
+// or an embedded base64 icon, not packed code.
+describe('obfuscation signal precision', () => {
+  test('a long JSDoc comment is not obfuscation', () => {
+    const tmp = mkTmpDir('long-comment');
+    const m = scan(tmp, 'pkg', { name: 'p', version: '1.0.0' }, {
+      'index.js': '/** ' + 'documented behaviour, see https://example.com/docs '.repeat(14) + ' */\nmodule.exports = 1;\n',
+    });
+    assert.equal(m.capabilities.obfuscationSignal.present, false);
+  });
+
+  test('a single long data line is not obfuscation', () => {
+    const tmp = mkTmpDir('data-blob');
+    const m = scan(tmp, 'pkg', { name: 'p', version: '1.0.0' }, {
+      'index.js': "const ICON = '" + 'A'.repeat(900) + "';\nmodule.exports = { ICON };\n",
+    });
+    assert.equal(m.capabilities.obfuscationSignal.present, false);
+  });
+
+  test('a genuinely packed file is still obfuscation', () => {
+    const tmp = mkTmpDir('packed');
+    const packed = Array.from({ length: 5 }, (_, i) => `var _${i}=${JSON.stringify('x'.repeat(700))};`).join('\n');
+    const m = scan(tmp, 'pkg', { name: 'p', version: '1.0.0' }, { 'index.js': packed });
+    assert.equal(m.capabilities.obfuscationSignal.present, true);
+  });
+
+  test('a whole file on one enormous line is still obfuscation', () => {
+    const tmp = mkTmpDir('one-line');
+    const m = scan(tmp, 'pkg', { name: 'p', version: '1.0.0' }, {
+      'index.js': '!function(){' + 'var a=1;'.repeat(200) + '}();',
+    });
+    assert.equal(m.capabilities.obfuscationSignal.present, true);
+  });
+});

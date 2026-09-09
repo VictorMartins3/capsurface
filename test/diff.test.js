@@ -22,8 +22,12 @@ describe('diffManifests', () => {
   test('a new risk flag with no category change still counts as escalation', () => {
     const tmp = mkTmpDir('gap');
     const before = scan(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': 'module.exports = {};\n' });
-    const packedBlob = "const blob = '" + 'a'.repeat(800) + "';\n";
-    const after = scan(tmp, 'v2', { name: 'p', version: '1.0.1' }, { 'index.js': packedBlob });
+    // A realistically packed file: several very long lines, which is what
+    // minified or obfuscated output looks like. One long line in otherwise
+    // ordinary source is a data blob or a big regex, and is deliberately
+    // not flagged, see the data-blob test below.
+    const packed = Array.from({ length: 4 }, (_, i) => `var _${i}=${JSON.stringify('a'.repeat(700))};`).join('\n') + '\n';
+    const after = scan(tmp, 'v2', { name: 'p', version: '1.0.1' }, { 'index.js': packed });
 
     assert.equal(before.riskFlags.length, 0);
     assert.ok(after.riskFlags.some((f) => f.includes('obfuscated')));
