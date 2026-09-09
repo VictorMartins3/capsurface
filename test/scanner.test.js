@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 
-const { blankComments, looksLikeBuildArtifact, scanPackageDir } = require('../lib/scanner');
+const { blankComments, blankErasedSyntax, excerpt, looksLikeBuildArtifact, scanPackageDir } = require('../lib/scanner');
 const { mkTmpDir, writePackage } = require('./helpers');
 
 describe('blankComments', () => {
@@ -255,5 +255,95 @@ describe('scanPackageDir', () => {
     const manifest = scanPackageDir(tmp);
     assert.equal(manifest.malformedPackageJson, false);
     assert.ok(!manifest.riskFlags.some((f) => f.includes('not valid JSON')));
+  });
+});
+
+// A declaration file emits no JavaScript and `import type` is erased by the
+// compiler, so neither can acquire a capability at runtime. Found across
+// 5,761 real packages: typescript read as having process execution from
+// `import { ChildProcess } from 'child_process'` in a .d.ts.
+describe('blankErasedSyntax', () => {
+  test('erases import type regardless of file kind', () => {
+    const out = blankErasedSyntax("import type { RequestOptions } from 'node:http';\n", 'src/x.ts');
+    assert.ok(!out.includes('node:http'));
+  });
+
+  test('erases a plain import in a declaration file', () => {
+    const out = blankErasedSyntax("import { ChildProcess } from 'child_process';\n", 'types/x.d.ts');
+    assert.ok(!out.includes('child_process'));
+  });
+
+  test('erases a multi-line import and keeps line numbering intact', () => {
+    const src = "import {\n  Socket\n} from 'net';\nexport {};\n";
+    const out = blankErasedSyntax(src, 'x.d.ts');
+    assert.ok(!out.includes("'net'"));
+    assert.equal(out.split('\n').length, src.split('\n').length);
+    assert.equal(out.length, src.length);
+  });
+
+  test('keeps a plain import outside a declaration file', () => {
+    const out = blankErasedSyntax("import { Socket } from 'net';\n", 'src/x.ts');
+    assert.ok(out.includes("'net'"));
+  });
+
+  // Blanking the whole file would be the same mistake as skipping test/:
+  // require('./payload.d.ts') does execute, Node loads an unknown extension
+  // as CommonJS.
+  test('keeps require() and call sites inside a declaration file', () => {
+    const src = "const cp = require('child_process');\nfs.readFileSync('/etc/passwd');\n";
+    const out = blankErasedSyntax(src, 'x.d.ts');
+    assert.ok(out.includes('child_process'));
+    assert.ok(out.includes('readFileSync'));
+  });
+});
+
+describe('excerpt', () => {
+  // A minified bundle is one enormous line; its first 200 characters have
+  // nothing to do with the match.
+  test('centres the snippet on the match in a very long line', () => {
+    const line = 'a'.repeat(600) + "process.binding('buffer')" + 'b'.repeat(600);
+    const out = excerpt(line, line.indexOf('process.binding'));
+    assert.ok(out.includes("process.binding('buffer')"));
+    assert.ok(out.length <= 210);
+  });
+
+  test('leaves a short line alone', () => {
+    assert.equal(excerpt("  const cp = require('cp');  ", 12), "const cp = require('cp');");
+  });
+});
+
+describe('capability rules against shapes found in real packages', () => {
+  test('a type-only import in a .d.ts does not grant process execution', () => {
+    const tmp = mkTmpDir('dts-type-import');
+    const dir = writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' }, {
+      'index.js': 'module.exports = {};\n',
+      'index.d.ts': "import { ExecOptions } from 'child_process';\nexport declare function sha(o: ExecOptions): string;\n",
+    });
+    assert.equal(scanPackageDir(dir).capabilities.exec.present, false);
+  });
+
+  test('real code smuggled into a .d.ts still counts', () => {
+    const tmp = mkTmpDir('dts-payload');
+    const dir = writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' }, {
+      'index.js': "require('./payload.d.ts');\n",
+      'payload.d.ts': "const cp = require('child_process');\ncp.exec('id');\n",
+    });
+    assert.equal(scanPackageDir(dir).capabilities.exec.present, true);
+  });
+
+  test('comparing a filename against .node is not loading native code', () => {
+    const tmp = mkTmpDir('dot-node-compare');
+    const dir = writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' }, {
+      'index.js': "if (!source.endsWith('.node')) throw new Error('x');\n",
+    });
+    assert.equal(scanPackageDir(dir).capabilities.nativeFfi.present, false);
+  });
+
+  test('requiring a .node addon is loading native code', () => {
+    const tmp = mkTmpDir('dot-node-load');
+    const dir = writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' }, {
+      'index.js': "module.exports = require('./build/Release/keytar.node');\n",
+    });
+    assert.equal(scanPackageDir(dir).capabilities.nativeFfi.present, true);
   });
 });
