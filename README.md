@@ -10,6 +10,57 @@ access, process execution, environment/credential access, dynamic code
 execution, install-time lifecycle scripts) and flags escalation across
 versions in CI, before a compromised release gets merged.
 
+## Quick start
+
+No dependencies, no build step.
+
+```bash
+npx capsurface scan-tree node_modules --out .capsurface/manifests
+```
+
+```
+Scanned 666 package install(s), including nested, symlinked and pnpm-store locations.
+
+Runs code at install time: 5 of 666
+  esbuild@0.28.2  risk=15
+      postinstall: node install.js
+  sharp@0.33.5  risk=10
+      install: node install/check
+  bcrypt@5.1.1  risk=4
+      install: node-pre-gyp install --fallback-to-build
+  ...
+```
+
+Approve that surface once, commit it, and let CI fail when it grows:
+
+```bash
+npx capsurface baseline .capsurface/manifests --out capsurface.lock.json
+git add capsurface.lock.json
+
+# in CI, after npm ci
+npx capsurface scan-tree node_modules --out .capsurface/manifests
+npx capsurface check .capsurface/manifests --baseline capsurface.lock.json
+```
+
+When a dependency gains something it did not have, the check says what and
+exits non-zero:
+
+```
+CAPABILITY ESCALATIONS (1):
+
+  dotenv: 16.6.1 -> 16.6.99  [dotenv]  (risk delta +22)
+    [capability-added] "Network access" was not present in 16.6.1 but appears in 16.6.99.
+    [capability-added] "Sensitive credential/file targeting" was not present in 16.6.1 but appears in 16.6.99.
+    [lifecycle-script-changed] script changed:
+    previously approved: (none)
+    now:                 "node ./lib/telemetry.js"
+    [new-network-endpoints] new literal endpoint(s) referenced: https://telemetry-collector.example-exfil.net/v1/ingest
+    new host(s): telemetry-collector.example-exfil.net
+    [new-env-vars] new credential-shaped env var(s) referenced: NPM_TOKEN
+    ⚠ NEW FLAG: CRITICAL: install-time lifecycle script (preinstall/install/postinstall) combined with
+      network access and credential/env access, matching the self-propagating supply-chain worm pattern.
+```
+
 ## Why
 
 Supply-chain worms self-propagate across npm by the same pattern: a
@@ -21,7 +72,7 @@ capability-surface diff catches the second thing directly, on top of the
 tooling developers already have (npm, package.json, JS source), with no
 new language or runtime required.
 
-## Prior art
+## What npm 12 does not close
 
 In August 2026 npm 12 began blocking install scripts by default, and pnpm
 11, Yarn 4.14, Bun and Deno now do the same. You opt packages back in
@@ -64,54 +115,140 @@ diffs the capability surface of every file a package ships, so it sees a
 payload that only runs at require time. `test/` and `docs/` are included on
 purpose, since that is exactly where flatmap-stream hid.
 
-Here is the rest of the landscape and where capsurface sits in it.
+## Install
 
-| | Detection basis | Timing model | Deployment |
-|---|---|---|---|
-| Socket | Behavioral analysis, real-time registry-wide monitoring, threat intel | Proactive, ecosystem-wide, can flag a compromised publish within minutes | Hosted SaaS (free tier for OSS) |
-| Semgrep Supply Chain (malicious-dependency feature) | Lookup against a database of 80,000+ known-malicious packages | Reactive, needs the package already discovered and added to the database | Hosted SaaS |
-| GuardDog (Datadog, open source) | Static heuristics (YARA rules as of v3.2.0, Semgrep in earlier releases) correlating a capability with a threat indicator, plus an optional dynamic sandbox and registry-metadata rules | Proactive, point-in-time: `guarddog npm scan <pkg>@<version>` scores one version in isolation, no bulk/tree mode | Open source CLI, local |
-| capsurface | Static heuristics correlating capability categories | Proactive and delta-based: fires only when a capability is new relative to a reviewed baseline | Open source, zero dependencies, offline |
+No dependencies, no build step, just Node.js >= 14.
 
-Two things are already solved better elsewhere, and capsurface does not
-compete on either. Socket's real-time monitoring and Semgrep's
-malicious-package database do things a static, offline, zero-dependency
-tool cannot: catch a compromised publish before `npm install` ever runs,
-correlate against maintainer behavior and typosquatting, and cover more
-ecosystems than the six categories here. Static analysis is also weaker
-than dynamic sandboxed analysis for obfuscated payloads, which is why the
-OpenSSF's own [Package Analysis](https://github.com/ossf/package-analysis)
-project runs packages in gVisor instead of only reading source. GuardDog
-and Semgrep share this limitation for their source-only heuristics too.
+```bash
+chmod +x bin/capsurface.js
+./bin/capsurface.js --help
+```
 
-What capsurface bets on instead is the timing model. GuardDog and most
-point-in-time scanners answer "is this version risky in isolation," so a
-package that legitimately has network and env access, which is most
-packages, re-triggers the same warning on every scan forever unless the
-tool keeps its own allowlist. capsurface answers "did this update add a
-capability that was not in the version we already reviewed," the same
-question `git diff` answers for code, applied to capability surface. The
-unit of trust is a plain JSON file committed next to `package-lock.json`
-and reviewed in PRs, not a hosted API or a score you cannot inspect. It is
-not a replacement for Socket or Semgrep. It is a cheap first gate that
-does not require a SaaS relationship to exist at all.
+Run the test suite (needs Node >= 18 for the built-in `node:test` runner;
+this is dev-only, the shipped CLI still needs only Node >= 14):
 
-On August 4 2026, the `keyv`/`cacheable` npm namespaces (2,234 poisoned
-versions across 444 packages) were compromised through a hijacked
-maintainer account. The payload was a `preinstall` hook that downloaded a
-standalone Bun runtime and ran an obfuscated second-stage payload
-harvesting credentials, [reported by Socket, Wiz, Datadog, and
-Snyk](https://socket.dev/blog/popular-npm-packages-in-the-keyv-and-cacheable-namespaces-compromised-in-active-supply-chain).
-capsurface cannot see what the downloaded runtime does, same blind spot as
-below, but does not need to: a `preinstall` script combined with new
-network access is exactly the CRITICAL combination this tool flags, on the
-first scan of the compromised version, using only what is already
-implemented. It is also a second real-world confirmation, after Shai-Hulud
-V1 to V2, that `preinstall` and not just `postinstall` is where these
-attacks land (see CHANGELOG.md). The same report describes a vector this
-tool has no coverage for: malicious VS Code and Claude Code hook files
-committed straight into the source tree, executing on folder-open with no
-`npm install` involved. Noted below as a real limitation, not ignored.
+```bash
+npm test
+```
+
+## Usage
+
+Scan a single package:
+
+```bash
+capsurface scan node_modules/some-pkg --out manifest.json
+```
+
+Scan an entire `node_modules` tree:
+
+```bash
+capsurface scan-tree node_modules --out .capsurface/manifests
+```
+
+Prints a risk-ranked summary and writes one manifest per installed
+package, including scoped packages. Follows nested `node_modules`,
+symlinked packages, and pnpm's `.pnpm` store, all bounded to the project
+directory: a symlink resolving outside it is reported and fails the run
+instead of being followed (see CHANGELOG.md). In a monorepo, scanning a
+workspace member's own `node_modules` still finds sibling workspace
+packages through workspace-root detection; pass `--boundary <dir>` to
+override this for layouts detection does not fit.
+
+Establish a baseline, once, after human review:
+
+```bash
+capsurface baseline .capsurface/manifests --out capsurface.lock.json
+git add capsurface.lock.json
+```
+
+Gate CI on capability escalation, on every install after `npm ci`:
+
+```bash
+capsurface scan-tree node_modules --out .capsurface/manifests
+capsurface check .capsurface/manifests --baseline capsurface.lock.json
+```
+
+Exits non-zero if any dependency's capability surface grew relative to the
+committed baseline: new capability category, changed lifecycle script,
+new network endpoint, new env var referenced. Add `--fail-on-new` to also
+fail on packages not yet in the baseline, forcing an explicit
+review-and-rebaseline step.
+
+Produce the install-script allowlist npm 12 requires:
+
+```bash
+capsurface allowlist .capsurface/manifests
+```
+
+```
+5 of 666 installed package(s) run code at install time.
+
+Add to package.json:
+
+  "allowScripts": [
+    "bcrypt@5.1.1",
+    "esbuild@0.25.12",
+    "esbuild@0.28.2",
+    "msgpackr-extract@3.0.4",
+    "sharp@0.33.5"
+  ]
+
+What each one does at install time, from its own source:
+
+  esbuild@0.28.2  (esbuild)
+      postinstall node install.js
+      reaches     filesystem, network, process execution, env
+      talks to    https://registry.npmjs.org/..., https://nodejs.org/en/download/
+      ⚠ HIGH: install-time lifecycle script combined with process execution.
+```
+
+Writing the list is the easy half and every tool in this space does it.
+The half that takes judgement is deciding what belongs on it, so each entry
+carries what that package's own source reaches for and where it talks to,
+from the same manifests the gate uses. `--format pnpm` emits
+`onlyBuiltDependencies` instead, `--format json` is machine readable and
+carries the rules fingerprint, and `--names` drops the version pin.
+
+Diff two manifests directly:
+
+```bash
+capsurface diff old-manifest.json new-manifest.json
+```
+
+## Limitations
+
+This is static regex-based heuristic analysis, not a sound one.
+
+- Cannot see through obfuscation, minification, or `require(computedExpr)`.
+- Cannot see capabilities acquired only at runtime, such as dynamically
+  fetched and `eval`'d code, beyond a generic "dynamic execution" flag.
+- False-negative risk by construction. This is a triage signal for
+  human/CI review, not an enforcement boundary. Pair it with runtime
+  sandboxing (WASI, microVMs, egress allowlists) for actual enforcement.
+- Category detection is a proxy, not ground truth. "exec" is detected via
+  `require('child_process')` specifically to avoid colliding with
+  unrelated APIs like `RegExp.prototype.exec()`.
+- A plain `.ts` file that imports only types without writing `import type`
+  still counts. `import type` and declaration files are erased because both
+  are unambiguous; this case is not, and telling
+  `import { SpawnOptions } from 'child_process'` from
+  `import { execSync } from 'child_process'` needs type information rather
+  than a naming convention. Measured at 87 of 20,039 packages, and guessing
+  from casing would trade a small number of false positives for false
+  negatives in the category where they cost most.
+- The comment and regex-literal-aware scanner (`blankComments` in
+  `lib/scanner.js`) is a hand-rolled character scanner, not a real parser.
+  Regex-vs-division is ambiguous in JS without full parsing; see the doc
+  comment there for what is and is not handled, and `${...}` template
+  interpolation is a known blind spot.
+- Tested against real npm and a synthetic pnpm-shaped tree. Yarn Berry's
+  Plug'n'Play mode does not produce a `node_modules` directory at all, so
+  it is not scannable as-is; set `nodeLinker: node-modules` in
+  `.yarnrc.yml`, or use classic Yarn, npm, or pnpm's default linker.
+- Scope is npm's install-time surface only: package.json scripts and the
+  source of installed dependencies. No visibility into editor or IDE
+  auto-execution hooks, which is the second vector the keyv/cacheable
+  attack used and out of scope for a `node_modules` scan by design.
 
 ## Verification
 
@@ -309,140 +446,56 @@ treatment of `preinstall`/`install`/`postinstall` as equally
 install-triggering closes a gap that a more general tool's rule set, as
 configured and run here, did not.
 
-## Limitations
+## Prior art
 
-This is static regex-based heuristic analysis, not a sound one.
+Where capsurface sits among the tools that already exist.
 
-- Cannot see through obfuscation, minification, or `require(computedExpr)`.
-- Cannot see capabilities acquired only at runtime, such as dynamically
-  fetched and `eval`'d code, beyond a generic "dynamic execution" flag.
-- False-negative risk by construction. This is a triage signal for
-  human/CI review, not an enforcement boundary. Pair it with runtime
-  sandboxing (WASI, microVMs, egress allowlists) for actual enforcement.
-- Category detection is a proxy, not ground truth. "exec" is detected via
-  `require('child_process')` specifically to avoid colliding with
-  unrelated APIs like `RegExp.prototype.exec()`.
-- A plain `.ts` file that imports only types without writing `import type`
-  still counts. `import type` and declaration files are erased because both
-  are unambiguous; this case is not, and telling
-  `import { SpawnOptions } from 'child_process'` from
-  `import { execSync } from 'child_process'` needs type information rather
-  than a naming convention. Measured at 87 of 20,039 packages, and guessing
-  from casing would trade a small number of false positives for false
-  negatives in the category where they cost most.
-- The comment and regex-literal-aware scanner (`blankComments` in
-  `lib/scanner.js`) is a hand-rolled character scanner, not a real parser.
-  Regex-vs-division is ambiguous in JS without full parsing; see the doc
-  comment there for what is and is not handled, and `${...}` template
-  interpolation is a known blind spot.
-- Tested against real npm and a synthetic pnpm-shaped tree. Yarn Berry's
-  Plug'n'Play mode does not produce a `node_modules` directory at all, so
-  it is not scannable as-is; set `nodeLinker: node-modules` in
-  `.yarnrc.yml`, or use classic Yarn, npm, or pnpm's default linker.
-- Scope is npm's install-time surface only: package.json scripts and the
-  source of installed dependencies. No visibility into editor or IDE
-  auto-execution hooks, which is the second vector the keyv/cacheable
-  attack used and out of scope for a `node_modules` scan by design.
+| | Detection basis | Timing model | Deployment |
+|---|---|---|---|
+| Socket | Behavioral analysis, real-time registry-wide monitoring, threat intel | Proactive, ecosystem-wide, can flag a compromised publish within minutes | Hosted SaaS (free tier for OSS) |
+| Semgrep Supply Chain (malicious-dependency feature) | Lookup against a database of 80,000+ known-malicious packages | Reactive, needs the package already discovered and added to the database | Hosted SaaS |
+| GuardDog (Datadog, open source) | Static heuristics (YARA rules as of v3.2.0, Semgrep in earlier releases) correlating a capability with a threat indicator, plus an optional dynamic sandbox and registry-metadata rules | Proactive, point-in-time: `guarddog npm scan <pkg>@<version>` scores one version in isolation, no bulk/tree mode | Open source CLI, local |
+| capsurface | Static heuristics correlating capability categories | Proactive and delta-based: fires only when a capability is new relative to a reviewed baseline | Open source, zero dependencies, offline |
 
-## Install
+Two things are already solved better elsewhere, and capsurface does not
+compete on either. Socket's real-time monitoring and Semgrep's
+malicious-package database do things a static, offline, zero-dependency
+tool cannot: catch a compromised publish before `npm install` ever runs,
+correlate against maintainer behavior and typosquatting, and cover more
+ecosystems than the six categories here. Static analysis is also weaker
+than dynamic sandboxed analysis for obfuscated payloads, which is why the
+OpenSSF's own [Package Analysis](https://github.com/ossf/package-analysis)
+project runs packages in gVisor instead of only reading source. GuardDog
+and Semgrep share this limitation for their source-only heuristics too.
 
-No dependencies, no build step, just Node.js >= 14.
+What capsurface bets on instead is the timing model. GuardDog and most
+point-in-time scanners answer "is this version risky in isolation," so a
+package that legitimately has network and env access, which is most
+packages, re-triggers the same warning on every scan forever unless the
+tool keeps its own allowlist. capsurface answers "did this update add a
+capability that was not in the version we already reviewed," the same
+question `git diff` answers for code, applied to capability surface. The
+unit of trust is a plain JSON file committed next to `package-lock.json`
+and reviewed in PRs, not a hosted API or a score you cannot inspect. It is
+not a replacement for Socket or Semgrep. It is a cheap first gate that
+does not require a SaaS relationship to exist at all.
 
-```bash
-chmod +x bin/capsurface.js
-./bin/capsurface.js --help
-```
-
-Run the test suite (needs Node >= 18 for the built-in `node:test` runner;
-this is dev-only, the shipped CLI still needs only Node >= 14):
-
-```bash
-npm test
-```
-
-## Usage
-
-Scan a single package:
-
-```bash
-capsurface scan node_modules/some-pkg --out manifest.json
-```
-
-Scan an entire `node_modules` tree:
-
-```bash
-capsurface scan-tree node_modules --out .capsurface/manifests
-```
-
-Prints a risk-ranked summary and writes one manifest per installed
-package, including scoped packages. Follows nested `node_modules`,
-symlinked packages, and pnpm's `.pnpm` store, all bounded to the project
-directory: a symlink resolving outside it is reported and fails the run
-instead of being followed (see CHANGELOG.md). In a monorepo, scanning a
-workspace member's own `node_modules` still finds sibling workspace
-packages through workspace-root detection; pass `--boundary <dir>` to
-override this for layouts detection does not fit.
-
-Establish a baseline, once, after human review:
-
-```bash
-capsurface baseline .capsurface/manifests --out capsurface.lock.json
-git add capsurface.lock.json
-```
-
-Gate CI on capability escalation, on every install after `npm ci`:
-
-```bash
-capsurface scan-tree node_modules --out .capsurface/manifests
-capsurface check .capsurface/manifests --baseline capsurface.lock.json
-```
-
-Exits non-zero if any dependency's capability surface grew relative to the
-committed baseline: new capability category, changed lifecycle script,
-new network endpoint, new env var referenced. Add `--fail-on-new` to also
-fail on packages not yet in the baseline, forcing an explicit
-review-and-rebaseline step.
-
-Produce the install-script allowlist npm 12 requires:
-
-```bash
-capsurface allowlist .capsurface/manifests
-```
-
-```
-5 of 666 installed package(s) run code at install time.
-
-Add to package.json:
-
-  "allowScripts": [
-    "bcrypt@5.1.1",
-    "esbuild@0.25.12",
-    "esbuild@0.28.2",
-    "msgpackr-extract@3.0.4",
-    "sharp@0.33.5"
-  ]
-
-What each one does at install time, from its own source:
-
-  esbuild@0.28.2  (esbuild)
-      postinstall node install.js
-      reaches     filesystem, network, process execution, env
-      talks to    https://registry.npmjs.org/..., https://nodejs.org/en/download/
-      ⚠ HIGH: install-time lifecycle script combined with process execution.
-```
-
-Writing the list is the easy half and every tool in this space does it.
-The half that takes judgement is deciding what belongs on it, so each entry
-carries what that package's own source reaches for and where it talks to,
-from the same manifests the gate uses. `--format pnpm` emits
-`onlyBuiltDependencies` instead, `--format json` is machine readable and
-carries the rules fingerprint, and `--names` drops the version pin.
-
-Diff two manifests directly:
-
-```bash
-capsurface diff old-manifest.json new-manifest.json
-```
+On August 4 2026, the `keyv`/`cacheable` npm namespaces (2,234 poisoned
+versions across 444 packages) were compromised through a hijacked
+maintainer account. The payload was a `preinstall` hook that downloaded a
+standalone Bun runtime and ran an obfuscated second-stage payload
+harvesting credentials, [reported by Socket, Wiz, Datadog, and
+Snyk](https://socket.dev/blog/popular-npm-packages-in-the-keyv-and-cacheable-namespaces-compromised-in-active-supply-chain).
+capsurface cannot see what the downloaded runtime does, same blind spot as
+below, but does not need to: a `preinstall` script combined with new
+network access is exactly the CRITICAL combination this tool flags, on the
+first scan of the compromised version, using only what is already
+implemented. It is also a second real-world confirmation, after Shai-Hulud
+V1 to V2, that `preinstall` and not just `postinstall` is where these
+attacks land (see CHANGELOG.md). The same report describes a vector this
+tool has no coverage for: malicious VS Code and Claude Code hook files
+committed straight into the source tree, executing on folder-open with no
+`npm install` involved. Noted below as a real limitation, not ignored.
 
 ## Example
 
@@ -472,9 +525,13 @@ fail the CI check with the exact capability diff.
 
 ## Contributing
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces fit and where
-to change what, then [CONTRIBUTING.md](CONTRIBUTING.md). Security issues go through
-[SECURITY.md](SECURITY.md), not a public issue.
+Start with [ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces fit and
+where to change what, then [CONTRIBUTING.md](CONTRIBUTING.md). A rule change
+is measured against real packages, not argued; the pull request template
+asks for the numbers.
+
+Security issues go through [SECURITY.md](SECURITY.md), not a public issue.
+Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## License
 
