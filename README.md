@@ -1,6 +1,6 @@
 # capsurface
 
-[![ci](https://github.com/victormartinsd/capsurface/actions/workflows/ci.yml/badge.svg)](https://github.com/victormartinsd/capsurface/actions/workflows/ci.yml)
+[![ci](https://github.com/VictorMartins3/capsurface/actions/workflows/ci.yml/badge.svg)](https://github.com/VictorMartins3/capsurface/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/capsurface.svg)](https://www.npmjs.com/package/capsurface)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 

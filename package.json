@@ -12,13 +12,13 @@
     "malware-detection",
     "ci-cd"
   ],
-  "homepage": "https://github.com/victormartinsd/capsurface#readme",
+  "homepage": "https://github.com/VictorMartins3/capsurface#readme",
   "bugs": {
-    "url": "https://github.com/victormartinsd/capsurface/issues"
+    "url": "https://github.com/VictorMartins3/capsurface/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/victormartinsd/capsurface.git"
+    "url": "git+https://github.com/VictorMartins3/capsurface.git"
   },
   "license": "MIT",
   "author": "Victor Martinsd",
