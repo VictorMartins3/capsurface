@@ -263,3 +263,42 @@ describe('tampering under an unchanged version', () => {
     assert.match(res.stdout, /Network access/);
   });
 });
+
+// Nobody turns a blocking gate on in an unfamiliar codebase on day one.
+describe('--report-only', () => {
+  function tamperedTree() {
+    const tmp = mkTmpDir('report-only');
+    writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
+    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
+    writePackage(tmp, 'v2', { name: 'p', version: '1.0.1', scripts: { postinstall: 'node x.js' } }, {
+      'index.js': "require('https');\nconst t = process.env.NPM_TOKEN;\n",
+    });
+    runCli(['scan', path.join(tmp, 'v2'), '--out', path.join(tmp, 'cur/p@1.0.1.json')]);
+    return tmp;
+  }
+
+  test('reports the same findings but exits 0', () => {
+    const tmp = tamperedTree();
+    const gated = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json')]);
+    assert.equal(gated.status, 1);
+
+    const reported = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json'), '--report-only']);
+    assert.equal(reported.status, 0);
+    assert.match(reported.stdout, /CAPABILITY ESCALATIONS/);
+    assert.match(reported.stdout, /REPORT ONLY/);
+    assert.match(reported.stdout, /would have failed the build/);
+  });
+
+  test('says plainly when there was nothing to suppress', () => {
+    const tmp = mkTmpDir('report-only-clean');
+    writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
+    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'cur/p@1.0.0.json')]);
+
+    const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json'), '--report-only']);
+    assert.equal(res.status, 0);
+    assert.match(res.stdout, /nothing would have failed anyway/);
+  });
+});

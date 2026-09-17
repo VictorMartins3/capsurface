@@ -353,7 +353,7 @@ function cmdCheck(args) {
   const { positional, flags } = parseFlags(args);
   const manifestsDir = positional[0];
   if (!manifestsDir) {
-    die('usage: capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new]');
+    die('usage: capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only]');
   }
   const baselineFile = flags.baseline || 'capsurface.lock.json';
   if (!fs.existsSync(baselineFile)) die(`baseline not found: ${baselineFile} (run "capsurface baseline" first)`);
@@ -452,6 +452,20 @@ function cmdCheck(args) {
 
   const shouldFail = anyEscalation || (flags['fail-on-new'] && newPackages.length > 0);
 
+  // Nobody turns a blocking gate on in an unfamiliar codebase on day one.
+  // --report-only prints the same report and exits 0, so a team can run it
+  // for a few weeks, see what it would have stopped, and decide from data.
+  if (flags['report-only']) {
+    if (shouldFail) {
+      console.log('capsurface check: REPORT ONLY, exiting 0.\n');
+      console.log('Without --report-only this run would have failed the build.');
+      console.log('Drop the flag once the findings above look like ones you want to block on.');
+    } else {
+      console.log('capsurface check passed. (--report-only, nothing would have failed anyway)');
+    }
+    return;
+  }
+
   if (shouldFail) {
     // Whoever reads this has to decide between "this is an attack" and "this
     // is a legitimate upgrade", and the second answer needs a command. Not
@@ -503,7 +517,7 @@ Usage:
   capsurface scan <package-dir> [--out manifest.json]
   capsurface scan-tree <node_modules-dir> --out <manifests-dir>
   capsurface baseline <manifests-dir> [--out capsurface.lock.json]
-  capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new]
+  capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only]
   capsurface diff <baseline-manifest.json> <current-manifest.json>
   capsurface allowlist <manifests-dir> [--format npm|pnpm|json] [--names] [--out <file>]
 `);
