@@ -529,12 +529,48 @@ configured and run here, did not.
 
 Where capsurface sits among the tools that already exist.
 
-| | Detection basis | Timing model | Deployment |
-|---|---|---|---|
-| Socket | Behavioral analysis, real-time registry-wide monitoring, threat intel | Proactive, ecosystem-wide, can flag a compromised publish within minutes | Hosted SaaS (free tier for OSS) |
-| Semgrep Supply Chain (malicious-dependency feature) | Lookup against a database of 80,000+ known-malicious packages | Reactive, needs the package already discovered and added to the database | Hosted SaaS |
-| GuardDog (Datadog, open source) | Static heuristics (YARA rules as of v3.2.0, Semgrep in earlier releases) correlating a capability with a threat indicator, plus an optional dynamic sandbox and registry-metadata rules | Proactive, point-in-time: `guarddog npm scan <pkg>@<version>` scores one version in isolation, no bulk/tree mode | Open source CLI, local |
-| capsurface | Static heuristics correlating capability categories | Proactive and delta-based: fires only when a capability is new relative to a reviewed baseline | Open source, zero dependencies, offline |
+| | Detection basis | Timing model | Scope | Deps | Deployment |
+|---|---|---|---|---|---|
+| Socket | Behavioural analysis, registry-wide monitoring, threat intel | Proactive, ecosystem-wide, can flag a compromised publish within minutes | whole package | n/a | Hosted SaaS |
+| Semgrep Supply Chain | Lookup against 80,000+ known-malicious packages | Reactive, needs the package already in the database | whole package | n/a | Hosted SaaS |
+| GuardDog 3.2 (Datadog) | YARA rules correlating a capability with a threat indicator, plus an optional kernel sandbox and registry-metadata rules | Point-in-time, one version in isolation, no bulk or tree mode | whole package | Python + yara-python, pygit2 | OSS CLI, local |
+| js-x-ray 8.2 (NodeSecure) | AST with a variable tracer and constant folding | Point-in-time, per file | whole package | several | OSS library |
+| wormguard 1.0.3 | AST with taint approximation, IoC corpus, script hashes, sigstore provenance | Delta-based on inventory and script hashes | install scripts | 7 | OSS CLI, local |
+| capsurface | Source-text rules over folded literals | Delta-based on capability surface, relative to a reviewed baseline | whole package | none | OSS CLI, local, offline |
+
+Two things are still solved better elsewhere and this does not compete on
+either. Socket's real-time monitoring and Semgrep's malicious-package
+database catch a compromised publish before `npm install` ever runs, and
+correlate against maintainer behaviour and typosquatting, which a static
+offline tool cannot. Dynamic sandboxing beats static analysis on obfuscated
+payloads, which is why the OpenSSF's own
+[Package Analysis](https://github.com/ossf/package-analysis) runs packages in
+gVisor. GuardDog's sandbox and registry-metadata rules were not evaluated
+here.
+
+Where it does compete, measured rather than asserted:
+
+**Detection depth**, on the evasion corpus above: capsurface 13/14, js-x-ray
+9/14, wormguard 8/14, GuardDog 3/14. GuardDog reaches 5/14 with two pending
+patches for the `node:` prefix and template-literal specifiers.
+
+**Scope.** The same payload, reading `~/.npmrc` and `NPM_TOKEN` and POSTing
+them out, placed in a package with and without an install script:
+
+| | with an install script | without one |
+|---|---|---|
+| capsurface | CRITICAL, HIGH | HIGH |
+| wormguard | 5 findings | nothing |
+| npm-script-lens | reviewable | "no risky install-time behavior" |
+
+Neither is wrong; both are scoped to install scripts and report nothing when
+there is no install script. That scope is the difference, and the second
+column is the event-stream shape, where the payload ran on `require()`.
+
+**Speed**, same 203-package tree, median of three: capsurface 0.66s, wormguard
+0.49s. wormguard is faster and reads far less, since it only analyses install
+script entry points. GuardDog has no bulk mode at all; on a 119-package
+corpus it was about 47x slower, mostly process startup paid per package.
 
 Two things are already solved better elsewhere, and capsurface does not
 compete on either. Socket's real-time monitoring and Semgrep's
