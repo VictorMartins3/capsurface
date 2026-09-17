@@ -352,7 +352,9 @@ function cmdAllowlist(args) {
 function cmdCheck(args) {
   const { positional, flags } = parseFlags(args);
   const manifestsDir = positional[0];
-  if (!manifestsDir) die('usage: capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new]');
+  if (!manifestsDir) {
+    die('usage: capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new]');
+  }
   const baselineFile = flags.baseline || 'capsurface.lock.json';
   if (!fs.existsSync(baselineFile)) die(`baseline not found: ${baselineFile} (run "capsurface baseline" first)`);
   const lock = readJson(baselineFile);
@@ -400,12 +402,18 @@ function cmdCheck(args) {
     const union = unionOfManifests(baselineManifests);
     for (const manifest of currentManifests) {
       totalCurrentManifests++;
-      const exactMatch = baselineManifests.some((b) => b.version === manifest.version);
-      if (exactMatch) continue; // this exact version has already been reviewed somewhere in the tree
 
-      // diffManifests already sets report.baselineVersion from union.version
-      // (itself derived from baselineManifests), so no need to recompute it.
-      const report = diffManifests(union, manifest);
+      // An approved version is compared against its own approved manifest,
+      // not against the union and not skipped. Skipping it assumed that a
+      // version number pins the content, which is the assumption an attacker
+      // subverts: a postinstall in one package rewriting a sibling's files
+      // never changes a version. Using its own manifest also stops a
+      // capability approved for a different version from excusing it here.
+      const approved = baselineManifests.find((b) => b.version === manifest.version);
+
+      // diffManifests already sets report.baselineVersion from the baseline
+      // it is given, so there is nothing to recompute.
+      const report = diffManifests(approved || union, manifest);
       if (report.escalated) {
         anyEscalation = true;
         escalations.push({ report, installPath: manifest.installPath });
@@ -443,6 +451,7 @@ function cmdCheck(args) {
   }
 
   const shouldFail = anyEscalation || (flags['fail-on-new'] && newPackages.length > 0);
+
   if (shouldFail) {
     // Whoever reads this has to decide between "this is an attack" and "this
     // is a legitimate upgrade", and the second answer needs a command. Not

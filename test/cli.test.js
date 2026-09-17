@@ -209,3 +209,57 @@ describe('capsurface allowlist', () => {
     assert.match(res.stdout, /Nothing to allow/);
   });
 });
+
+// The check skipped any package whose version string matched one already in
+// the baseline, without looking at its content. That is the shape of a
+// postinstall in one package rewriting a sibling's files: the version never
+// changes, so the diff never ran.
+describe('tampering under an unchanged version', () => {
+  test('is caught', () => {
+    const tmp = mkTmpDir('same-version-tamper');
+    writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
+    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
+
+    // Same version, new capability and a new install script.
+    writePackage(tmp, 'v1b', { name: 'p', version: '1.0.0', scripts: { postinstall: 'node x.js' } }, {
+      'index.js': "require('fs');\nrequire('https');\nconst t = process.env.NPM_TOKEN;\n",
+    });
+    runCli(['scan', path.join(tmp, 'v1b'), '--out', path.join(tmp, 'cur/p@1.0.0.json')]);
+
+    const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json')]);
+    assert.equal(res.status, 1, 'a package tampered under the same version must fail the gate');
+    assert.match(res.stdout, /CRITICAL/);
+  });
+
+  test('an untouched package at a baselined version stays quiet', () => {
+    const tmp = mkTmpDir('same-version-clean');
+    writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
+    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'cur/p@1.0.0.json')]);
+
+    const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json')]);
+    assert.equal(res.status, 0);
+    assert.match(res.stdout, /No capability escalations/);
+  });
+
+  // The union exists so a capability approved in any installed version is not
+  // treated as new. It must not launder tampering of a different version.
+  test('a capability approved only in a sibling version does not excuse it here', () => {
+    const tmp = mkTmpDir('same-version-union');
+    writePackage(tmp, 'a', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+    writePackage(tmp, 'b', { name: 'p', version: '2.0.0' }, { 'index.js': "require('https');\n" });
+    runCli(['scan', path.join(tmp, 'a'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
+    runCli(['scan', path.join(tmp, 'b'), '--out', path.join(tmp, 'base/p@2.0.0.json')]);
+    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
+
+    // 1.0.0 gains network, which only 2.0.0 was ever approved for.
+    writePackage(tmp, 'a2', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\nrequire('https');\n" });
+    runCli(['scan', path.join(tmp, 'a2'), '--out', path.join(tmp, 'cur/p@1.0.0.json')]);
+
+    const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json')]);
+    assert.equal(res.status, 1);
+    assert.match(res.stdout, /Network access/);
+  });
+});
