@@ -5,7 +5,7 @@
 ## Rule changes
 
 Delete this section if no detection rule changed. Otherwise, from
-ARCHITECTURE.md:
+CONTRIBUTING.md:
 
 - [ ] `npm test` passes, with a regression test for the case that motivated it
 - [ ] `examples/run-demo.sh` still fails the gate

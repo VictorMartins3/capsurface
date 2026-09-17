@@ -702,10 +702,9 @@ fail the CI check with the exact capability diff.
 
 ## Contributing
 
-Start with [ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces fit and
-where to change what, then [CONTRIBUTING.md](CONTRIBUTING.md). A rule change
-is measured against real packages, not argued; the pull request template
-asks for the numbers.
+[CONTRIBUTING.md](CONTRIBUTING.md) covers how the pieces fit, where to change
+what, and the one rule that matters most: a rule change is measured against
+real packages, not argued, and the pull request template asks for the numbers.
 
 Security issues go through [SECURITY.md](SECURITY.md), not a public issue.
 Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
