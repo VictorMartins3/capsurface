@@ -207,3 +207,23 @@ describe('new network endpoints', () => {
     assert.match(change.detail, /new host\(s\): collector\.invalid/);
   });
 });
+
+// Same family as obfuscation and oversized files: a dependency that starts
+// loading a module we cannot name is a loss of visibility, not an
+// observation about the code.
+describe('a version that starts loading an unnameable module', () => {
+  test('escalates', () => {
+    const tmp = mkTmpDir('unresolved-diff');
+    const before = scan(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+    const after = scan(tmp, 'v2', { name: 'p', version: '1.0.1' }, { 'index.js': "require('fs');\nrequire(lookup(x));\n" });
+    assert.equal(after.capabilities.unresolvedRequire.present, true);
+    assert.equal(diffManifests(before, after).escalated, true);
+  });
+
+  test('does not escalate when it already did that', () => {
+    const tmp = mkTmpDir('unresolved-both');
+    const before = scan(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': 'require(lookup(x));\n' });
+    const after = scan(tmp, 'v2', { name: 'p', version: '1.0.1' }, { 'index.js': 'require(lookup(y));\n' });
+    assert.equal(diffManifests(before, after).escalated, false);
+  });
+});

@@ -778,3 +778,41 @@ describe('the node: module prefix', () => {
     assert.equal(caps("require('vm2');\n").dynamicEval.present, false);
   });
 });
+
+// A package doing `require(deobfuscate(payload))` reported nothing at all:
+// no capability, no flag, indistinguishable from an inert package. Whatever
+// that module can do is not in the manifest, and that is worth saying.
+describe('a module name we could not resolve', () => {
+  function scan(src) {
+    const tmp = mkTmpDir('unresolved');
+    return scanPackageDir(writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' }, { 'index.js': src }));
+  }
+
+  test('is recorded and flagged', () => {
+    const m = scan('const cp = require(deobfuscate(payload));\n');
+    assert.equal(m.capabilities.unresolvedRequire.present, true);
+    assert.ok(m.riskFlags.some((f) => f.includes('could not be resolved')));
+  });
+
+  test('covers a specifier that only exists at runtime', () => {
+    assert.equal(scan('require(process.env.MOD_NAME);\n').capabilities.unresolvedRequire.present, true);
+    assert.equal(scan('const m = await import(userInput);\n').capabilities.unresolvedRequire.present, true);
+  });
+
+  // A path anchored inside the package resolves to a file the walk already
+  // read, so its capabilities are in the manifest either way.
+  test('ignores a path anchored inside the package', () => {
+    assert.equal(scan('require(path.join(__dirname, name));\n').capabilities.unresolvedRequire.present, false);
+    assert.equal(scan("require('./' + name);\n").capabilities.unresolvedRequire.present, false);
+  });
+
+  test('stays quiet on a specifier the folds resolve', () => {
+    assert.equal(scan("const m = 'child_process';\nrequire(m);\n").capabilities.unresolvedRequire.present, false);
+    assert.equal(scan("require('child' + '_process');\n").capabilities.unresolvedRequire.present, false);
+  });
+
+  test('is not a property named require', () => {
+    assert.equal(scan('mod.require(x);\n').capabilities.unresolvedRequire.present, false);
+    assert.equal(scan('__webpack_require__(123);\n').capabilities.unresolvedRequire.present, false);
+  });
+});
