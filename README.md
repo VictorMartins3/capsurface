@@ -232,6 +232,14 @@ capsurface diff old-manifest.json new-manifest.json
 This is static regex-based heuristic analysis, not a sound one.
 
 - Cannot see through obfuscation, minification, or `require(computedExpr)`.
+  `test/evasion.test.js` is a corpus of the documented techniques, and it
+  asserts both directions: the spellings that are caught (`node:` prefixes,
+  template-literal specifiers, `process['binding']`, indirect `(0, eval)`)
+  and the ones that are not (concatenation, a variable, hex and unicode
+  escapes, `String.fromCharCode`, array join, reversal, base64). The misses
+  are in the test on purpose. A source-text matcher cannot resolve a
+  specifier that is computed at runtime, and writing that down is better
+  than finding out later.
 - Cannot see capabilities acquired only at runtime, such as dynamically
   fetched and `eval`'d code, beyond a generic "dynamic execution" flag.
 - False-negative risk by construction. This is a triage signal for

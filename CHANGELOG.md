@@ -345,6 +345,13 @@ corpus in 37.5s rather than 53.8s.
 
 ### Security
 
+- Evasions that cost an attacker nothing. A template-literal specifier,
+  ``require(`child_process`)``, a space before the paren, `process['binding']`
+  in bracket notation, `globalThis['eval']` and the indirect `(0, eval)(s)`
+  all read as nothing at all. Swapping a quote for a backtick is not an
+  obfuscation technique, it is a typo an attacker would find by accident.
+  Closing them changed no capability on 202 real packages, because no
+  legitimate package writes that way.
 - A gate bypass. `check` skipped any package whose version string already
   appeared in the baseline, on the assumption that a version number pins the
   content. That is the assumption an attacker subverts: a postinstall in one
@@ -364,7 +371,7 @@ corpus in 37.5s rather than 53.8s.
 
 ### Verification
 
-- 145 automated tests (`npm test`) covering the discovery, diff,
+- 164 automated tests (`npm test`) covering the discovery, diff,
   comment-scanning and rule bugs above as regressions.
 - Discovery verified against a real install from each package manager rather
   than a fixture: npm 11 hoisted, pnpm 12's symlinked `.pnpm` store, Yarn
@@ -372,6 +379,12 @@ corpus in 37.5s rather than 53.8s.
   whose members symlink out of `node_modules` entirely. Every difference
   against a naive walk is the walk over-counting `lib/cjs` stubs, vendored
   copies and benchmark directories; none is a missed package.
+- `test/evasion.test.js`, a corpus of documented obfuscation techniques
+  taken from the npm malicious-package benchmark (arXiv 2603.27549) and the
+  JavaScript deobfuscation survey (arXiv 2512.14070). It asserts what is
+  caught and, deliberately, what is not: a source-text matcher cannot
+  resolve a specifier built at runtime, and that belongs in a test rather
+  than in a footnote.
 - Benchmarked against a real 118-package corpus of popular libraries and a
   462 MB / 428-package build-tooling tree: 0 false CRITICAL flags, down
   from 2 before the fixes above, sub-second scan time on the small corpus.
