@@ -174,6 +174,12 @@ new network endpoint on a host it did not use before, new credential-shaped
 env var. Add `--fail-on-new` to also fail on packages not yet in the
 baseline, forcing an explicit review-and-rebaseline step.
 
+`--json` emits the same report as a structured object: the rules
+fingerprint, every escalation with its changes and new flags, and which mode
+it ran in. A report nobody can aggregate is a report nobody keeps, and
+`--report-only` only pays off if weeks of findings go somewhere other than a
+CI log.
+
 Start with `--report-only`. It prints the same report and exits 0, so you
 can leave it in CI for a few weeks and see what it would have stopped
 before you let it stop anything. A gate switched on blind, in a codebase

@@ -353,7 +353,7 @@ function cmdCheck(args) {
   const { positional, flags } = parseFlags(args);
   const manifestsDir = positional[0];
   if (!manifestsDir) {
-    die('usage: capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only]');
+    die('usage: capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only] [--json]');
   }
   const baselineFile = flags.baseline || 'capsurface.lock.json';
   if (!fs.existsSync(baselineFile)) die(`baseline not found: ${baselineFile} (run "capsurface baseline" first)`);
@@ -419,6 +419,40 @@ function cmdCheck(args) {
         escalations.push({ report, installPath: manifest.installPath });
       }
     }
+  }
+
+  // A report nobody can aggregate is a report nobody keeps. --report-only
+  // asks a team to collect weeks of findings before switching the gate on,
+  // and that is only worth doing if the output goes somewhere other than a
+  // CI log.
+  if (flags.json) {
+    const payload = {
+      rulesVersion: RULES_VERSION,
+      baseline: baselineFile,
+      manifestsScanned: totalCurrentManifests,
+      baselineManifests: totalBaselineManifests,
+      escalated: anyEscalation,
+      reportOnly: flags['report-only'] === true,
+      newPackages: newPackages.map((m) => ({
+        name: m.name,
+        version: m.version,
+        installPath: m.installPath,
+        riskScore: m.riskScore,
+        riskFlags: m.riskFlags,
+      })),
+      escalations: escalations.map(({ report, installPath }) => ({
+        name: report.name,
+        baselineVersion: report.baselineVersion,
+        currentVersion: report.currentVersion,
+        installPath,
+        riskScoreDelta: report.riskScoreDelta,
+        changes: report.changes,
+        newRiskFlags: report.newRiskFlags,
+      })),
+    };
+    console.log(JSON.stringify(payload, null, 2));
+    const failing = anyEscalation || (flags['fail-on-new'] && newPackages.length > 0);
+    process.exit(failing && !flags['report-only'] ? 1 : 0);
   }
 
   console.log(`capsurface check: ${totalCurrentManifests} manifest(s) scanned against baseline of ${totalBaselineManifests}\n`);
@@ -517,7 +551,7 @@ Usage:
   capsurface scan <package-dir> [--out manifest.json]
   capsurface scan-tree <node_modules-dir> --out <manifests-dir>
   capsurface baseline <manifests-dir> [--out capsurface.lock.json]
-  capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only]
+  capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only] [--json]
   capsurface diff <baseline-manifest.json> <current-manifest.json>
   capsurface allowlist <manifests-dir> [--format npm|pnpm|json] [--names] [--out <file>]
 `);

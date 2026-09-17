@@ -302,3 +302,42 @@ describe('--report-only', () => {
     assert.match(res.stdout, /nothing would have failed anyway/);
   });
 });
+
+// --report-only asks a team to collect weeks of findings before switching the
+// gate on, which is only worth doing if the output goes somewhere other than
+// a CI log.
+describe('--json', () => {
+  function tampered() {
+    const tmp = mkTmpDir('check-json');
+    writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
+    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
+    writePackage(tmp, 'v2', { name: 'p', version: '1.0.1', scripts: { postinstall: 'node x.js' } }, {
+      'index.js': "require('https');\nconst t = process.env.NPM_TOKEN;\n",
+    });
+    runCli(['scan', path.join(tmp, 'v2'), '--out', path.join(tmp, 'cur/p@1.0.1.json')]);
+    return tmp;
+  }
+
+  test('emits a machine-readable report and still fails', () => {
+    const tmp = tampered();
+    const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json'), '--json']);
+    assert.equal(res.status, 1);
+    const payload = JSON.parse(res.stdout);
+    assert.equal(payload.escalated, true);
+    assert.equal(payload.escalations.length, 1);
+    assert.equal(payload.escalations[0].name, 'p');
+    assert.equal(payload.escalations[0].currentVersion, '1.0.1');
+    assert.ok(payload.escalations[0].newRiskFlags.some((f) => f.startsWith('CRITICAL')));
+    assert.ok(payload.rulesVersion);
+  });
+
+  test('exits 0 with --report-only and says which mode it was', () => {
+    const tmp = tampered();
+    const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json'), '--json', '--report-only']);
+    assert.equal(res.status, 0);
+    const payload = JSON.parse(res.stdout);
+    assert.equal(payload.escalated, true);
+    assert.equal(payload.reportOnly, true);
+  });
+});
