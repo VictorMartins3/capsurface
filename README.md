@@ -348,6 +348,48 @@ specifier whose value only exists once the program runs, like
 `require(process.env.MOD)` or a name built in a loop. Those are reported
 rather than resolved, see `unresolvedRequire`.
 
+### On real production applications
+
+Four open-source applications installed and scanned as they ship, not
+libraries: uptime-kuma, documenso, outline, nocodb. 5,853 installed packages.
+
+| app | packages | run at install | CRITICAL | HIGH |
+|---|---|---|---|---|
+| uptime-kuma | 1,235 | 14 (1.1%) | 0 | 6 |
+| documenso | 2,049 | 15 (0.7%) | 1 | 14 |
+| outline | 2,013 | 8 (0.4%) | 0 | 6 |
+| nocodb | 556 | 1 (0.2%) | 1 | 2 |
+
+Both CRITICALs are true positives and both are legitimate: documenso's
+`prisma` runs a `preinstall`, talks to the network and reads `~/.npmrc` to
+fetch its engine binaries; nocodb's `nx` runs a `postinstall`, talks to the
+network and reads `GITHUB_TOKEN`. Neither is malware. Both are exactly the
+allowlist decision npm 12 now forces, surfaced as two lines to review out of
+5,853 packages rather than left for someone to find.
+
+Then the end-to-end test, with a synthetic compromise rather than a real one
+(no real malware is ever fetched here). A quiet transitive dependency of
+uptime-kuma, `abort-controller`, was tampered in place the way Shai-Hulud V2
+does it: a `preinstall` was added, pointing at an obfuscated payload that
+builds its module names out of `Buffer.from('...', 'hex')` and
+`String.fromCharCode`, reads `~/.npmrc` and `NPM_TOKEN`, and POSTs them to a
+`.tk` host. The gate caught every layer:
+
+```
+abort-controller 3.0.0 -> 3.0.0  (delta +30)
+  capability-added: Filesystem access, Network access, Process execution,
+                    Sensitive credential/file targeting
+  lifecycle-script-changed: (none) -> "node dist/bundle.js"
+  new-network-endpoints: new host: npm-registry-cache.tk
+  new-env-vars: NPM_TOKEN
+  CRITICAL: install-time script + network + credential (worm pattern)
+```
+
+The obfuscated `require(Buffer.from('6368...','hex').toString())` resolved to
+`child_process` because of the fold pass, so process execution showed up
+rather than nothing. The version never changed, and it was still caught,
+because the diff compares content, not version strings.
+
 ### Discovery, against real installs from each package manager
 
 The layouts differ enough to be worth checking separately rather than

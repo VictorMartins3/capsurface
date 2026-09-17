@@ -373,6 +373,12 @@ corpus in 37.5s rather than 53.8s.
 
 - 164 automated tests (`npm test`) covering the discovery, diff,
   comment-scanning and rule bugs above as regressions.
+- Scanned four production applications as they ship (uptime-kuma, documenso,
+  outline, nocodb): 5,853 installed packages, 2 CRITICAL, both true and both
+  legitimate (prisma's engine fetch, nx's release tooling). End-to-end test
+  with a synthetic Shai-Hulud V2-style compromise of a quiet transitive
+  dependency, obfuscated module names and all, caught with the full CRITICAL
+  diff. No real malware fetched.
 - Discovery verified against a real install from each package manager rather
   than a fixture: npm 11 hoisted, pnpm 12's symlinked `.pnpm` store, Yarn
   Berry 4.18 with `nodeLinker: node-modules`, and an npm workspaces monorepo
