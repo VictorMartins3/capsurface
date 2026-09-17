@@ -241,10 +241,10 @@ This is static regex-based heuristic analysis, not a sound one.
   Regex-vs-division is ambiguous in JS without full parsing; see the doc
   comment there for what is and is not handled, and `${...}` template
   interpolation is a known blind spot.
-- Tested against real npm and a synthetic pnpm-shaped tree. Yarn Berry's
-  Plug'n'Play mode does not produce a `node_modules` directory at all, so
-  it is not scannable as-is; set `nodeLinker: node-modules` in
-  `.yarnrc.yml`, or use classic Yarn, npm, or pnpm's default linker.
+- Yarn Berry's Plug'n'Play mode does not produce a `node_modules` directory
+  at all, so it is not scannable as-is; set `nodeLinker: node-modules` in
+  `.yarnrc.yml`, or use npm, pnpm, or classic Yarn. The other three layouts
+  are verified against real installs, see Verification below.
 - Scope is npm's install-time surface only: package.json scripts and the
   source of installed dependencies. No visibility into editor or IDE
   auto-execution hooks, which is the second vector the keyv/cacheable
@@ -283,6 +283,31 @@ diff. Regression fixtures cover a malicious `postinstall` hidden in a
 nested `node_modules`, the same hidden behind a symlink, and a version
 bump that adds only an obfuscated payload with no literal token for the
 regex to match, three cases that previously slipped through.
+
+### Discovery, against real installs from each package manager
+
+The layouts differ enough to be worth checking separately rather than
+against a fixture. Same dependency set where possible, each installed for
+real, each compared against a walk that counts every directory holding a
+package.json with a name and a version.
+
+| | packages found | walk counts | difference |
+|---|---|---|---|
+| npm 11, hoisted | 666 | 716 | 50 |
+| pnpm 12, symlinked `.pnpm` store | 222 | 227 | 5 |
+| Yarn Berry 4.18, `nodeLinker: node-modules` | 202 | 208 | 5 |
+| npm workspaces monorepo | 138 | 138 | 0 |
+
+Every difference is the walk over-counting, not discovery missing anything:
+they are `lib/cjs/package.json` type stubs, vendored copies, benchmark
+directories and test fixtures like `pino/test/fixtures/transport`. None is
+an installed package, and their source is still read as part of the package
+that ships them.
+
+The monorepo case is the one worth calling out. npm symlinks each workspace
+member from `node_modules/@scope/name` to `../../packages/name`, which
+resolves outside `node_modules` entirely. All three members are found, with
+`installPath` recording where they really live.
 
 ### Against 20,039 packages sampled across the registry
 
