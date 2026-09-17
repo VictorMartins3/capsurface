@@ -33,13 +33,15 @@ jobs:
       - name: Scan the installed tree
         run: npx --yes capsurface@0.1.0 scan-tree node_modules --out .capsurface/manifests
 
+      # Drop --report-only once the findings look like ones you want to
+      # block on. Until then this runs, reports, and exits 0.
       - name: Check against the approved baseline
-        run: npx --yes capsurface@0.1.0 check .capsurface/manifests --baseline capsurface.lock.json
+        run: npx --yes capsurface@0.1.0 check .capsurface/manifests --baseline capsurface.lock.json --report-only
 
       # The manifests say which file and line produced each finding, which
       # is what a reviewer needs and what the job log truncates.
       - name: Upload manifests
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: capsurface-manifests

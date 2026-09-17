@@ -13,6 +13,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   a committed baseline and the currently installed tree.
 - `--boundary <dir>` flag on `scan-tree` to override the symlink-escape
   boundary for layouts the default heuristic does not fit.
+- `capsurface allowlist`, which writes the install-script allowlist npm 12
+  and its peers require, for npm, pnpm and JSON consumers, with what each
+  package reaches for attached so the approval is informed.
+- `--report-only` on `check`: the same report, exit 0. A blocking gate does
+  not get switched on in an unfamiliar codebase on day one, and asking for
+  that is how a tool gets evaluated for an afternoon and dropped.
 - Lock file schema v2: `packages: {name: Manifest[]}`, supports a name
   installed at multiple versions in the same tree. A v1 lock file with a
   single manifest per name still loads.
@@ -339,6 +345,17 @@ corpus in 37.5s rather than 53.8s.
 
 ### Security
 
+- A gate bypass. `check` skipped any package whose version string already
+  appeared in the baseline, on the assumption that a version number pins the
+  content. That is the assumption an attacker subverts: a postinstall in one
+  package rewriting a sibling's files never changes a version, so the diff
+  never ran and the gate stayed silent for every dependency that had not
+  been upgraded, which is most of them. Reproduced on a real workspaces
+  install, where axios tampered in place to add a postinstall reading
+  NPM_TOKEN passed with exit 0. An approved version is now compared against
+  its own approved manifest; the union is kept for versions genuinely new to
+  the baseline, so a capability approved for a sibling version cannot excuse
+  tampering with this one.
 - 15 MB per-file scan cap. This scanner's input is untrusted by
   definition, and nothing previously bounded how large a single file it
   would read fully into memory. A package could ship one oversized file
@@ -347,8 +364,14 @@ corpus in 37.5s rather than 53.8s.
 
 ### Verification
 
-- 119 automated tests (`npm test`) covering the discovery, diff,
+- 145 automated tests (`npm test`) covering the discovery, diff,
   comment-scanning and rule bugs above as regressions.
+- Discovery verified against a real install from each package manager rather
+  than a fixture: npm 11 hoisted, pnpm 12's symlinked `.pnpm` store, Yarn
+  Berry 4.18 with `nodeLinker: node-modules`, and an npm workspaces monorepo
+  whose members symlink out of `node_modules` entirely. Every difference
+  against a naive walk is the walk over-counting `lib/cjs` stubs, vendored
+  copies and benchmark directories; none is a missed package.
 - Benchmarked against a real 118-package corpus of popular libraries and a
   462 MB / 428-package build-tooling tree: 0 false CRITICAL flags, down
   from 2 before the fixes above, sub-second scan time on the small corpus.

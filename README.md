@@ -170,9 +170,21 @@ capsurface check .capsurface/manifests --baseline capsurface.lock.json
 
 Exits non-zero if any dependency's capability surface grew relative to the
 committed baseline: new capability category, changed lifecycle script,
-new network endpoint, new env var referenced. Add `--fail-on-new` to also
-fail on packages not yet in the baseline, forcing an explicit
-review-and-rebaseline step.
+new network endpoint on a host it did not use before, new credential-shaped
+env var. Add `--fail-on-new` to also fail on packages not yet in the
+baseline, forcing an explicit review-and-rebaseline step.
+
+Start with `--report-only`. It prints the same report and exits 0, so you
+can leave it in CI for a few weeks and see what it would have stopped
+before you let it stop anything. A gate switched on blind, in a codebase
+nobody has a baseline for yet, fires on the first upgrade and gets removed
+the same week. Drop the flag once the findings look like ones you want to
+block on.
+
+An approved version is compared against its own approved manifest, not
+skipped because the version string matches. A version number does not pin
+content: a postinstall in one package can rewrite a sibling's files without
+any version changing anywhere.
 
 Produce the install-script allowlist npm 12 requires:
 
