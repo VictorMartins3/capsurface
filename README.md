@@ -448,11 +448,12 @@ That test is now a standing one, widened so it cannot be tuned against:
 against its current release. Two years and, for many of them, a major
 version apart.
 
-| | escalations of 82 |
+| | escalations of 81 |
 |---|---|
 | Before the registry-scale campaign below | 5 |
 | After its false-positive fixes | 3 |
 | After its `node:` fix | 6 |
+| After reporting unresolvable module names | 8 |
 
 The two that went away were both the gate misreading generated code:
 `zod` 3 to 4 on a long IPv6 regex literal, `vite` 5 to 8 on the string
@@ -463,6 +464,15 @@ been blind to. `nanoid` 6 added a CLI that reads files with
 `import { readFileSync } from 'node:fs'` and `vitest` spawns processes with
 `node:child_process`; neither was visible before. A capability a dependency
 did not have two years ago is what this is supposed to raise once.
+
+The last three are packages that began loading a module whose name is not in
+the source. `svelte` 5 does `(module_name) => import(module_name)` from a
+variable it calls `obfuscated_import`, `sass` inlines a `parcel_watcher`
+loader, and `sinon` ships a UMD interop shim, `typeof require === "function"
+? require(m) : ...`. The last of those is the known noise shape: nothing
+about sinon changed, its bundler did. Kept anyway, because a dependency that
+starts loading something it cannot name is the shape a compromised release
+takes, and one glance per major version is proportionate.
 
 Teams upgrade one release at a time, so that is measured too: every fifth
 release of the same packages since 2024, diffed against the one before it.
