@@ -231,15 +231,14 @@ capsurface diff old-manifest.json new-manifest.json
 
 This is static regex-based heuristic analysis, not a sound one.
 
-- Cannot see through obfuscation, minification, or `require(computedExpr)`.
-  `test/evasion.test.js` is a corpus of the documented techniques, and it
-  asserts both directions: the spellings that are caught (`node:` prefixes,
-  template-literal specifiers, `process['binding']`, indirect `(0, eval)`)
-  and the ones that are not (concatenation, a variable, hex and unicode
-  escapes, `String.fromCharCode`, array join, reversal, base64). The misses
-  are in the test on purpose. A source-text matcher cannot resolve a
-  specifier that is computed at runtime, and writing that down is better
-  than finding out later.
+- Cannot see through minification, or a specifier that only exists once the
+  program runs (`require(process.env.MOD)`, a name built in a loop).
+  `lib/normalize.js` folds the constructions that are statically known, so
+  concatenation, a variable holding a literal, hex and unicode escapes,
+  `String.fromCharCode`, array joins, string reversal, `atob` and
+  `Buffer.from(..., 'base64'|'hex')` all resolve to the specifier the runtime
+  will see. `test/evasion.test.js` asserts both directions, and the rows that
+  are still misses are in there on purpose.
 - Cannot see capabilities acquired only at runtime, such as dynamically
   fetched and `eval`'d code, beyond a generic "dynamic execution" flag.
 - False-negative risk by construction. This is a triage signal for
@@ -303,6 +302,41 @@ diff. Regression fixtures cover a malicious `postinstall` hidden in a
 nested `node_modules`, the same hidden behind a symlink, and a version
 bump that adds only an obfuscated payload with no literal token for the
 regex to match, three cases that previously slipped through.
+
+### Against a corpus of evasion techniques
+
+Every fixture reaches `child_process`; each tool is asked the same question,
+does it say so. Techniques taken from the npm malicious-package benchmark
+(arXiv 2603.27549) and the JavaScript deobfuscation survey (arXiv 2512.14070).
+
+| technique | capsurface | js-x-ray 8.2 | wormguard 1.0.3 |
+|---|---|---|---|
+| `require('child_process')` | yes | yes | yes |
+| `node:` prefix | yes | yes | yes |
+| template literal | yes | no | yes |
+| space before the paren | yes | yes | yes |
+| multi-line require | no | yes | yes |
+| `'child' + '_process'` | yes | yes | yes |
+| through a variable | yes | yes | no |
+| hex escape | yes | yes | yes |
+| unicode escape | yes | yes | yes |
+| `String.fromCharCode` | yes | no | no |
+| array join | yes | no | no |
+| reversed string | yes | no | no |
+| `Buffer.from(..., 'base64')` | yes | no | no |
+| `Buffer.from(..., 'hex')` | yes | yes | no |
+| | **13/14** | **9/14** | **8/14** |
+
+The multi-line miss is architectural: matching is line-scoped so evidence can
+name a line, and a specifier sitting on its own line is not on the line with
+the `require`. The others are folded by `lib/normalize.js`, which is source
+rewriting rather than parsing: each fold only fires when every input is a
+literal, which is the case a parser would resolve anyway and the case an
+attacker gets for free.
+
+It costs about 1.25x scan time and changed no capability on 202 real
+packages, because nothing legitimate writes
+`require(Buffer.from('Y2hpbGRfcHJvY2Vzcw==', 'base64').toString())`.
 
 ### Discovery, against real installs from each package manager
 

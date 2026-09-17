@@ -10,9 +10,10 @@ const { mkTmpDir, writePackage } = require('./helpers');
 // exports it. The shape is the point, not any behaviour.
 //
 // Each row states whether this scanner is expected to catch it. The misses
-// are as much the point as the catches: a source-text matcher cannot resolve
-// a specifier that is computed at runtime, and writing that down is better
-// than discovering it later. If one of them starts passing, update the table.
+// are as much the point as the catches: a specifier that only exists once the
+// program runs cannot be resolved by reading the source, and writing that
+// down is better than discovering it later. If one of them starts passing,
+// the table is wrong and should be updated.
 //
 // Technique taxonomy from the npm malicious-package benchmark (arXiv
 // 2603.27549) and the JavaScript deobfuscation survey (arXiv 2512.14070).
@@ -31,17 +32,25 @@ const CORPUS = [
   ['globalThis["eval"]', 'dynamicEval', "module.exports = (s) => globalThis['eval'](s);\n", true],
   ['indirect (0, eval)', 'dynamicEval', 'module.exports = (s) => (0, eval)(s);\n', true],
 
-  // Out of reach. The specifier does not exist in the source text.
-  ['concatenation', 'exec', "const cp = require('child' + '_process');\n", false],
-  ['through a variable', 'exec', "const m = 'child_process';\nconst cp = require(m);\n", false],
-  ['hex escape', 'exec', "const cp = require('\\x63hild_process');\n", false],
-  ['unicode escape', 'exec', "const cp = require('\\u0063hild_process');\n", false],
-  ['String.fromCharCode', 'exec', 'const n = String.fromCharCode(99,104,105,108,100,95,112,114,111,99,101,115,115);\nmodule.exports = require(n);\n', false],
-  ['array join', 'exec', "module.exports = require(['child', 'process'].join('_'));\n", false],
-  ['reversed string', 'exec', "module.exports = require('ssecorp_dlihc'.split('').reverse().join(''));\n", false],
-  ['base64 decode', 'exec', "module.exports = require(Buffer.from('Y2hpbGRfcHJvY2Vzcw==', 'base64').toString());\n", false],
+  // Folded by lib/normalize.js: every input is a literal, so the specifier is
+  // the one the runtime will see.
+  ['concatenation', 'exec', "const cp = require('child' + '_process');\n", true],
+  ['through a variable', 'exec', "const m = 'child_process';\nconst cp = require(m);\n", true],
+  ['hex escape', 'exec', "const cp = require('\\x63hild_process');\n", true],
+  ['unicode escape', 'exec', "const cp = require('\\u0063hild_process');\n", true],
+  ['String.fromCharCode', 'exec', 'const n = String.fromCharCode(99,104,105,108,100,95,112,114,111,99,101,115,115);\nmodule.exports = require(n);\n', true],
+  ['array join', 'exec', "module.exports = require(['child', 'process'].join('_'));\n", true],
+  ['reversed string', 'exec', "module.exports = require('ssecorp_dlihc'.split('').reverse().join(''));\n", true],
+  ['base64 through Buffer.from', 'exec', "module.exports = require(Buffer.from('Y2hpbGRfcHJvY2Vzcw==', 'base64').toString());\n", true],
+  ['hex through Buffer.from', 'exec', "module.exports = require(Buffer.from('6368696c645f70726f63657373', 'hex').toString());\n", true],
+  ['atob', 'exec', "module.exports = require(atob('Y2hpbGRfcHJvY2Vzcw=='));\n", true],
+
+  // Still out of reach.
   // Line-scoped matching cannot see a specifier on its own line.
   ['multi-line require', 'exec', "const cp = require(\n  'child_process'\n);\n", false],
+  // The value only exists once the program runs.
+  ['computed at runtime', 'exec', "const cp = require(process.env.MOD_NAME);\n", false],
+  ['built in a loop', 'exec', "let n = '';\nfor (const c of [99,104]) n += String.fromCharCode(c);\nrequire(n + 'ild_process');\n", false],
 ];
 
 describe('evasion corpus', () => {
