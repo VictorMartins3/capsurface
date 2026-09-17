@@ -45,9 +45,11 @@ const CORPUS = [
   ['hex through Buffer.from', 'exec', "module.exports = require(Buffer.from('6368696c645f70726f63657373', 'hex').toString());\n", true],
   ['atob', 'exec', "module.exports = require(atob('Y2hpbGRfcHJvY2Vzcw=='));\n", true],
 
+  // A specifier on its own line: caught by a whole-file pass over the
+  // categories the per-line pass left absent.
+  ['multi-line require', 'exec', "const cp = require(\n  'child_process'\n);\n", true],
+
   // Still out of reach.
-  // Line-scoped matching cannot see a specifier on its own line.
-  ['multi-line require', 'exec', "const cp = require(\n  'child_process'\n);\n", false],
   // The value only exists once the program runs.
   ['computed at runtime', 'exec', "const cp = require(process.env.MOD_NAME);\n", false],
   ['built in a loop', 'exec', "let n = '';\nfor (const c of [99,104]) n += String.fromCharCode(c);\nrequire(n + 'ild_process');\n", false],

@@ -315,7 +315,7 @@ does it say so. Techniques taken from the npm malicious-package benchmark
 | `node:` prefix | yes | yes | yes |
 | template literal | yes | no | yes |
 | space before the paren | yes | yes | yes |
-| multi-line require | no | yes | yes |
+| multi-line require | yes | yes | yes |
 | `'child' + '_process'` | yes | yes | yes |
 | through a variable | yes | yes | no |
 | hex escape | yes | yes | yes |
@@ -325,18 +325,22 @@ does it say so. Techniques taken from the npm malicious-package benchmark
 | reversed string | yes | no | no |
 | `Buffer.from(..., 'base64')` | yes | no | no |
 | `Buffer.from(..., 'hex')` | yes | yes | no |
-| | **13/14** | **9/14** | **8/14** |
+| | **14/14** | **9/14** | **8/14** |
 
-The multi-line miss is architectural: matching is line-scoped so evidence can
-name a line, and a specifier sitting on its own line is not on the line with
-the `require`. The others are folded by `lib/normalize.js`, which is source
-rewriting rather than parsing: each fold only fires when every input is a
-literal, which is the case a parser would resolve anyway and the case an
-attacker gets for free.
+Most of those are folded by `lib/normalize.js`, which is source rewriting
+rather than parsing: each fold only fires when every input is a literal,
+which is the case a parser would resolve anyway and the case an attacker gets
+for free by typing a `+`. A specifier on its own line is reached by a
+whole-file pass, run only over the categories the per-line pass left absent.
 
-It costs about 1.25x scan time and changed no capability on 202 real
+Together they cost about 1.4x scan time and changed no capability on 202 real
 packages, because nothing legitimate writes
 `require(Buffer.from('Y2hpbGRfcHJvY2Vzcw==', 'base64').toString())`.
+
+What is still out of reach is in the corpus too, asserted as a miss: a
+specifier whose value only exists once the program runs, like
+`require(process.env.MOD)` or a name built in a loop. Those are reported
+rather than resolved, see `unresolvedRequire`.
 
 ### Discovery, against real installs from each package manager
 
@@ -560,7 +564,7 @@ here.
 
 Where it does compete, measured rather than asserted:
 
-**Detection depth**, on the evasion corpus above: capsurface 13/14, js-x-ray
+**Detection depth**, on the evasion corpus above: capsurface 14/14, js-x-ray
 9/14, wormguard 8/14, GuardDog 3/14. GuardDog reaches 5/14 with two pending
 patches for the `node:` prefix and template-literal specifiers.
 
