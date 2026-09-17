@@ -707,7 +707,6 @@ what, and the one rule that matters most: a rule change is measured against
 real packages, not argued, and the pull request template asks for the numbers.
 
 Security issues go through [SECURITY.md](SECURITY.md), not a public issue.
-Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## License
 
