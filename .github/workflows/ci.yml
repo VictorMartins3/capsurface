@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [18, 20, 22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm test
+
+  # The test runner needs Node 18; the shipped CLI claims Node 14. Prove it.
+  floor:
+    name: cli on the oldest supported node
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 14
+      - name: Scan the bundled fixture
+        run: node bin/capsurface.js scan examples/malicious-pkg-v2 --out /tmp/m.json
+      - name: Fail the gate on the compromised release
+        run: |
+          node bin/capsurface.js scan examples/malicious-pkg-v1 --out /tmp/base/pkg.json
+          node bin/capsurface.js baseline /tmp/base --out /tmp/lock.json
+          node bin/capsurface.js scan examples/malicious-pkg-v2 --out /tmp/cur/pkg.json
+          if node bin/capsurface.js check /tmp/cur --baseline /tmp/lock.json; then
+            echo "check passed on the compromised fixture, which is a regression"
+            exit 1
+          fi

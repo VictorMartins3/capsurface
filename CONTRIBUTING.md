@@ -21,6 +21,12 @@ npm test                        # requires Node >=18 for node:test; the CLI itse
 - New behavior has a regression test in `test/`. If you're fixing a bug,
   the test should fail on the old code and pass on the new code. That's
   what makes it a regression test rather than just a feature test.
+- **A rule change is measured, not argued.** Scan a corpus of real packages
+  with and without your change and diff the manifests: how many packages
+  gain the capability, how many lose it, how many risk flags move. A rule
+  that looks obviously right is how every one of the errors in
+  `CHANGELOG.md` got written in the first place. The numbers go in the PR
+  description.
 - If you're touching `lib/scanner.js`'s `blankComments`, be especially
   careful: it's a hand-rolled comment/regex-literal-aware character
   scanner, and its failure mode (a misjudged `/` desyncing state for the
@@ -54,7 +60,9 @@ npm test                        # requires Node >=18 for node:test; the CLI itse
 
 ## Reporting bugs vs. security issues
 
-Regular bugs: open a GitHub issue with a minimal reproduction.
+Regular bugs: open a GitHub issue. There are templates for the two that
+matter most here, a false positive (capsurface reported something that is
+not real) and a missed capability (it did not report something that is).
 
 Anything that could let a malicious package evade detection, escape the
 scan boundary, or otherwise compromise the scanner itself: see

@@ -12,6 +12,16 @@
     "malware-detection",
     "ci-cd"
   ],
+  "homepage": "https://github.com/victormartinsd/capsurface#readme",
+  "bugs": {
+    "url": "https://github.com/victormartinsd/capsurface/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/victormartinsd/capsurface.git"
+  },
+  "license": "MIT",
+  "author": "Victor Martinsd",
   "bin": {
     "capsurface": "bin/capsurface.js"
   },
@@ -23,11 +33,6 @@
     "LICENSE",
     "CHANGELOG.md"
   ],
-  "license": "MIT",
-  "author": "Victor Martinsd",
-  "scripts": {
-    "test": "node --test test/*.test.js"
-  },
   "engines": {
     "node": ">=14"
   },
@@ -37,5 +42,9 @@
       "version": ">=18",
       "onFail": "warn"
     }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "demo": "./examples/run-demo.sh"
   }
 }

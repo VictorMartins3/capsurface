@@ -1,0 +1,8 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.gz  binary
+*.tgz binary
+
+CHANGELOG.md merge=union

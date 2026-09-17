@@ -1,0 +1,39 @@
+name: False positive
+description: capsurface reported a capability or flag that is not real
+labels: [false-positive]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A gate that fires on ordinary work gets switched off, so these matter
+        as much as missed detections. The manifest records which rule matched
+        each finding, which is usually enough to fix it.
+  - type: input
+    id: package
+    attributes:
+      label: Package and version
+      placeholder: lru-cache@11.0.2
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence entry
+      description: The entry from the manifest, including its `pattern` and `file`.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it is wrong
+      description: What the matched line actually does.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: capsurface version and rulesVersion
+      placeholder: 0.1.0, rulesVersion 6f5a8ee7bea2
+    validations:
+      required: true

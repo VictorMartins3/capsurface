@@ -1,0 +1,45 @@
+name: Missed capability
+description: capsurface did not report something a package can actually do
+labels: [false-negative]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If this is a vulnerability in capsurface itself rather than a gap in
+        its rules, please follow SECURITY.md instead of opening an issue.
+  - type: input
+    id: package
+    attributes:
+      label: Package and version, or a minimal reproduction
+      placeholder: some-pkg@1.0.0
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: The code that was not reported
+      render: javascript
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Which capability
+      options:
+        - filesystem
+        - network
+        - exec
+        - env
+        - dynamicEval
+        - nativeFfi
+        - sensitiveTargets
+        - lifecycle script
+        - other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: capsurface version and rulesVersion
+    validations:
+      required: true

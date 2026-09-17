@@ -1,0 +1,24 @@
+name: Bug
+description: A crash, wrong output, or something that does not work as documented
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Command and output
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: capsurface version, Node version, OS, package manager
+      placeholder: 0.1.0, Node 22.11.0, macOS 15, pnpm 10
+    validations:
+      required: true

@@ -1,5 +1,9 @@
 # capsurface
 
+[![ci](https://github.com/victormartinsd/capsurface/actions/workflows/ci.yml/badge.svg)](https://github.com/victormartinsd/capsurface/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/capsurface.svg)](https://www.npmjs.com/package/capsurface)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A capability-aware supply-chain scanner for npm packages. It statically
 computes each dependency's capability surface (filesystem access, network
 access, process execution, environment/credential access, dynamic code
