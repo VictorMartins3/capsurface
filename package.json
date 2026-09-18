@@ -21,7 +21,7 @@
     "url": "git+https://github.com/VictorMartins3/capsurface.git"
   },
   "license": "MIT",
-  "author": "Victor Martinsd",
+  "author": "Victor Martins",
   "bin": {
     "capsurface": "bin/capsurface.js"
   },
