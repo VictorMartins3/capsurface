@@ -105,3 +105,31 @@ describe('type-position import() is not a runtime acquisition', () => {
     assert.equal(scanPackageDir(dir).capabilities.exec.present, true);
   });
 });
+
+describe('credential targeting: modern cloud/CI/container secrets', () => {
+  const scan = (src) => {
+    const dir = writePackage(mkTmpDir('cred'), 'pkg', { name: 'pkg', version: '1.0.0' }, { 'index.js': src });
+    return scanPackageDir(dir).capabilities.sensitiveTargets.present;
+  };
+
+  test('reads a kube config file', () => {
+    assert.equal(scan("const fs=require('fs');fs.readFileSync(process.env.HOME + '/.kube/config');\n"), true);
+  });
+  test('reads docker registry credentials', () => {
+    assert.equal(scan("const fs=require('fs');fs.readFileSync('/root/.docker/config.json');\n"), true);
+  });
+  test('reads git-credentials', () => {
+    assert.equal(scan("const fs=require('fs');fs.readFileSync(process.env.HOME + '/.git-credentials');\n"), true);
+  });
+  test('reads a GitLab token (propagation tier)', () => {
+    assert.equal(scan("module.exports = process.env.GITLAB_TOKEN;\n"), true);
+  });
+  test('reads GCP application credentials', () => {
+    assert.equal(scan("module.exports = process.env.GOOGLE_APPLICATION_CREDENTIALS;\n"), true);
+  });
+  // The design line: a package's own service key is credential-shaped but is
+  // not the propagation-tier signal that raises a worm CRITICAL.
+  test('a service key (OPENAI_API_KEY) is not propagation-tier', () => {
+    assert.equal(scan("module.exports = process.env.OPENAI_API_KEY;\n"), false);
+  });
+});

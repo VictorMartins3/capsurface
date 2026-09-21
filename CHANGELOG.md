@@ -40,6 +40,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   dangerous-module literal, so a `_load` call that passes a variable (the `esm`
   package's loader, for one) does not match. Zero capability changed on the
   3,248-package production corpus.
+- Credential targeting broadened to what modern supply-chain malware actually
+  harvests: the credential files `.git-credentials`, `.docker/config.json`,
+  `.kube/config` and gcloud application-default credentials (each gated on an
+  actual read, like `.npmrc` and `.ssh`), and, at the propagation tier that
+  raises the worm CRITICAL, GitLab, GCP and Azure keys alongside the existing
+  npm/GitHub/AWS set. A package's own service key (an `OPENAI_API_KEY`, a
+  `STRIPE_SECRET_KEY`) stays one tier down, caught as a credential-shaped env
+  read rather than the propagation signal. Zero capability changed on the
+  3,248-package production corpus.
 
 ### Fixed
 
