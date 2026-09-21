@@ -4,9 +4,44 @@ The full methodology behind the summary in the [README](../README.md): what was 
 
 ## Verification
 
-See `test/` (183 tests, `npm test`) and CHANGELOG.md for what was found and
+See `test/` (220 tests, `npm test`) and CHANGELOG.md for what was found and
 fixed while pressure-testing this against real installs instead of only
 the bundled demo.
+
+### Coverage and inventory hardening (2026-09-21)
+
+Compared the scanner at `3cff46b` with the coverage/indicator/native-install
+changes on the four local production trees below: 5,853 physical package
+installs, including repeated names/versions across applications. Discovery
+reported no errors or escaped links, and all package analyses completed
+within the new resource budgets.
+
+- 64 installs gained additional collected endpoints or env vars beyond the
+  old 20/40 truncation limits. For example, `es-abstract@1.24.2` in
+  uptime-kuma went from 20 to 4,332 literal endpoints. These include reference
+  URLs, not necessarily runtime network destinations.
+- One existing capability category changed: `unix-dgram@2.0.7` in outline
+  now reports its implicit install command. Its shipped `binding.gyp` and
+  lack of an explicit install/preinstall confirm npm's `node-gyp rebuild`
+  default. This is a legitimate native build requiring an approval decision.
+- No package gained or lost a risk flag. This is a before/after observation
+  on these installed trees, not a claim of universal zero false positives
+  or a new benchmark of upgrade-gate precision.
+
+Regression tests exercise indicators after the old limits, bounded collection
+with explicit incomplete status, I/O failures, stale/interrupted snapshots,
+snapshot checksums, output path containment, native-install overrides, and
+engine fingerprint portability. The existing demo still fails with exit 1.
+Local validation used Node 26.8.1; the repository's CI matrix covers other
+Node versions and operating systems and was not run remotely for this change.
+
+The fingerprint changes with this engine update. Rescan and review the
+baseline migration: newly collected indicators may have existed previously
+but been absent from a truncated older manifest. Scan-time differences from
+the corpus comparison are not a performance claim; old scans ran first and
+new scans could benefit from filesystem caching.
+
+### Earlier corpus measurements
 
 Discovery coverage, tested against a real 462 MB / 12,398-file tree
 (typescript, webpack, next.js, eslint, jest, and their transitive deps):

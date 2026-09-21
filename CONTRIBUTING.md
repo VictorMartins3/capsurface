@@ -30,9 +30,10 @@ Where to change what:
 | Change how packages are found on disk | `lib/discovery.js` |
 | Change CLI flags, output, exit codes | `bin/capsurface.js` |
 
-`lib/rules-version.js` hashes everything in `categories.js` that affects a
-manifest. Touching a rule changes that hash, and `check` warns that existing
-baselines were written by different rules. That is intentional: edit a rule and
+`lib/rules-version.js` hashes the detection rules and the scanner,
+normalizer, discovery and diff implementations (with line endings normalized).
+Changing these changes that hash, and `check` warns that existing
+baselines were written by different rules. That is intentional: edit the engine and
 every committed baseline means something slightly different, which a security
 gate must not hide.
 

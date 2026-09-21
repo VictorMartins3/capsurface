@@ -10,7 +10,7 @@ const { mkTmpDir, writePackage, runCli } = require('./helpers');
 function scanTree(nodeModulesDir) {
   const outDir = path.join(fs.mkdtempSync(path.join(nodeModulesDir, '..', 'out-')), 'manifests');
   const res = runCli(['scan-tree', nodeModulesDir, '--out', outDir]);
-  const names = fs.readdirSync(outDir).map((f) => f.replace(/\.json$/, ''));
+  const names = fs.readdirSync(outDir).filter((f) => f.endsWith('.json')).map((f) => f.replace(/\.json$/, ''));
   return { res, outDir, names };
 }
 

@@ -17,6 +17,7 @@ versions in CI, before a compromised release gets merged.
 No dependencies, no build step.
 
 ```bash
+npm ci --ignore-scripts
 npx capsurface scan-tree node_modules --out .capsurface/manifests
 ```
 
@@ -39,10 +40,16 @@ Approve that surface once, commit it, and let CI fail when it grows:
 npx capsurface baseline .capsurface/manifests --out capsurface.lock.json
 git add capsurface.lock.json
 
-# in CI, after npm ci
+# in CI, before running dependency scripts or application code
+npm ci --ignore-scripts
 npx capsurface scan-tree node_modules --out .capsurface/manifests
 npx capsurface check .capsurface/manifests --baseline capsurface.lock.json
 ```
+
+Keep install scripts disabled until the scan and review finish, including
+for packages already on a script allowlist. Approval of an older version
+does not approve the new contents. Run required build scripts only after
+review, under your package manager's explicit script policy.
 
 When a dependency gains something it did not have, the check says what and
 exits non-zero:
@@ -156,6 +163,21 @@ workspace member's own `node_modules` still finds sibling workspace
 packages through workspace-root detection; pass `--boundary <dir>` to
 override this for layouts detection does not fit.
 
+The output directory includes a `.capsurface-snapshot` inventory. Keep it
+with the manifests: `baseline`, `check`, and `allowlist` use it to exclude
+stale files from earlier scans and verify that the current files are intact.
+Interrupted scans and concurrent writes fail rather than producing an
+apparently clean inventory. After a crashed process leaves the directory
+locked, rerun with a fresh output directory.
+
+Manifest schema v4 includes `coverage`: files and bytes read, skipped files,
+and I/O errors. Endpoints and env vars are collected beyond the report's
+evidence samples. A resource limit or read failure marks analysis incomplete;
+`scan`/`scan-tree` exit 2, and `baseline`/`allowlist` refuse to approve it.
+`check` reports incomplete analysis as a failure even if it was already
+present in the baseline. `--report-only` still reports those findings with
+exit 0, but cannot suppress an invalid or unfinished snapshot.
+
 Establish a baseline, once, after human review:
 
 ```bash
@@ -163,9 +185,10 @@ capsurface baseline .capsurface/manifests --out capsurface.lock.json
 git add capsurface.lock.json
 ```
 
-Gate CI on capability escalation, on every install after `npm ci`:
+Gate CI on capability escalation before running dependency scripts:
 
 ```bash
+npm ci --ignore-scripts
 capsurface scan-tree node_modules --out .capsurface/manifests
 capsurface check .capsurface/manifests --baseline capsurface.lock.json
 ```
@@ -195,6 +218,11 @@ content: a postinstall in one package can rewrite a sibling's files without
 any version changing anywhere.
 
 Produce the install-script allowlist npm 12 requires:
+
+This includes npm's implicit `node-gyp rebuild` when a package ships
+`binding.gyp` without an overriding `install`/`preinstall` or `gypfile: false`.
+The manifest records the possible command, not whether local npm policy
+authorizes it to run.
 
 ```bash
 capsurface allowlist .capsurface/manifests

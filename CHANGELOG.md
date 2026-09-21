@@ -52,6 +52,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Endpoint and env-var collection no longer stops at 20/40 entries. The
+  complete collected sets feed comparison and credential scoring, independently
+  of the five evidence snippets shown per category. Resource budgets (10,000
+  entries or 1 MiB of text per set) mark analysis incomplete instead of
+  silently losing subsequent indicators.
+- Manifest schema v4 reports coverage and I/O failures, counts only successful
+  source reads, and marks resource exhaustion as incomplete analysis. Scanning
+  exits 2 on incomplete analysis; baseline and allowlist refuse approval, and
+  check fails even if the baseline carried the same gap. Report-only still
+  reports a valid manifest's findings without blocking.
+- `scan-tree` publishes a checksummed snapshot inventory, excludes stale
+  manifests when output is reused, and rejects interrupted or concurrently
+  written snapshots. Discovery errors now fail the inventory. Package metadata
+  is sanitized before generating output filenames.
+- Recognize npm's implicit `node-gyp rebuild` for `binding.gyp`, including
+  explicit script overrides and `gypfile: false`. The command appears in the
+  lifecycle diff and allowlist without being executed by the scanner.
+- The rules fingerprint now includes engine implementations, so normalization
+  and gating changes also invalidate old assumptions. CI examples install
+  with `--ignore-scripts` before analyzing the new dependency contents.
+
 Found by testing against real npm and pnpm installs and two rounds of
 independent code review, not only the bundled demo fixture.
 

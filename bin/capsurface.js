@@ -4,10 +4,11 @@
 const fs = require('fs');
 const path = require('path');
 const { scanPackageDir } = require('../lib/scanner');
-const { diffManifests, unionOfManifests } = require('../lib/diff');
+const { diffManifests, unionOfManifests, isAnalysisIncomplete } = require('../lib/diff');
 const { discoverPackageDirs } = require('../lib/discovery');
 const { INSTALL_TRIGGERING_SCRIPT_KEYS } = require('../lib/categories');
 const { RULES_VERSION } = require('../lib/rules-version');
+const { beginSnapshot, readManifests } = require('../lib/snapshot');
 
 function die(msg) {
   console.error(`capsurface: ${msg}`);
@@ -65,6 +66,7 @@ function cmdScan(args) {
   } else {
     console.log(JSON.stringify(manifest, null, 2));
   }
+  if (isAnalysisIncomplete(manifest)) process.exitCode = 2;
   if (manifest.riskFlags.length) {
     console.error('\nRisk flags:');
     for (const f of manifest.riskFlags) console.error(`  - ${f}`);
@@ -96,68 +98,86 @@ function cmdScanTree(args) {
       die(`--boundary directory not found: ${flags.boundary}`);
     }
   }
-  const { dirs: pkgDirs, skippedEscapes } = discoverPackageDirs(rootDir, discoverOpts);
-  if (skippedEscapes.length) {
-    console.error(`capsurface: WARNING: ${skippedEscapes.length} symlink(s) inside the scan tree point outside the project and were NOT followed:`);
-    for (const s of skippedEscapes) {
-      console.error(`  ${s.path} -> ${s.target}`);
+  const snapshot = beginSnapshot(flags.out);
+  try {
+    const { dirs: pkgDirs, skippedEscapes, errors, errorCount } = discoverPackageDirs(rootDir, discoverOpts);
+    for (const error of errors) {
+      console.error(`capsurface: discovery ${error.operation} failed: ${error.path} (${error.code})`);
     }
-    console.error('  A package legitimately should not need to link outside its project directory; treat this as suspicious.\n');
-  }
-  const manifests = [];
-  const usedFilenames = new Set();
-  for (const dir of pkgDirs) {
-    const manifest = scanPackageDir(dir);
-    manifest.installPath = path.relative(rootDir, dir);
-    manifests.push(manifest);
+    if (skippedEscapes.length) {
+      console.error(`capsurface: WARNING: ${skippedEscapes.length} symlink(s) inside the scan tree point outside the project and were NOT followed:`);
+      for (const s of skippedEscapes) {
+        console.error(`  ${s.path} -> ${s.target}`);
+      }
+      console.error('  A package legitimately should not need to link outside its project directory; treat this as suspicious.\n');
+    }
+    const manifests = [];
+    const usedFilenames = new Set();
+    for (const dir of pkgDirs) {
+      const manifest = scanPackageDir(dir);
+      manifest.installPath = path.relative(rootDir, dir);
+      manifests.push(manifest);
 
-    const base = `${manifest.name.replace('/', '__')}@${manifest.version}`;
-    let filename = `${base}.json`;
-    let n = 2;
-    // Two different physical installs can legitimately share the same
-    // name@version (rare, but possible with vendored/duplicated copies);
-    // disambiguate rather than silently overwriting one manifest with the
-    // other.
-    while (usedFilenames.has(filename)) {
-      filename = `${base}__${n}.json`;
-      n++;
+      const safePart = (value) => String(value).replace(/[\\/<>:"|?*\x00-\x1f]/g, '__');
+      const base = `${safePart(manifest.name)}@${safePart(manifest.version)}`;
+      let filename = `${base}.json`;
+      let n = 2;
+      // Two different physical installs can legitimately share the same
+      // name@version (rare, but possible with vendored/duplicated copies);
+      // disambiguate rather than silently overwriting one manifest with the
+      // other.
+      while (usedFilenames.has(filename.toLowerCase())) {
+        filename = `${base}__${n}.json`;
+        n++;
+      }
+      usedFilenames.add(filename.toLowerCase());
+      snapshot.write(filename, manifest);
     }
-    usedFilenames.add(filename);
-    writeJson(path.join(flags.out, filename), manifest);
-  }
-  // Install-time surface before the risk ranking. The score answers "how
-  // much can this package do"; a reviewer's first question is "what runs on
-  // npm install", a much shorter list and the one that decides blast
-  // radius. bcrypt scores 4 and would sort below twenty packages that
-  // cannot execute during install at all.
-  const installTime = manifests.filter(
-    (m) => m.capabilities.lifecycleScripts && m.capabilities.lifecycleScripts.installTriggering
-  );
-  console.log(`Scanned ${manifests.length} package install(s), including nested, symlinked and pnpm-store locations.\n`);
-  console.log(`Runs code at install time: ${installTime.length} of ${manifests.length}`);
-  if (installTime.length) {
-    for (const m of installTime.sort((a, b) => b.riskScore - a.riskScore)) {
-      console.log(`  ${m.name}@${m.version}  risk=${m.riskScore}`);
-      const scripts = m.capabilities.lifecycleScripts.scripts || {};
-      for (const key of INSTALL_TRIGGERING_SCRIPT_KEYS) {
-        if (scripts[key]) console.log(`      ${key}: ${scripts[key]}`);
+    // Install-time surface before the risk ranking. The score answers "how
+    // much can this package do"; a reviewer's first question is "what runs on
+    // npm install", a much shorter list and the one that decides blast
+    // radius. bcrypt scores 4 and would sort below twenty packages that
+    // cannot execute during install at all.
+    const installTime = manifests.filter(
+      (m) => m.capabilities.lifecycleScripts && m.capabilities.lifecycleScripts.installTriggering
+    );
+    console.log(`Scanned ${manifests.length} package install(s), including nested, symlinked and pnpm-store locations.\n`);
+    console.log(`Runs code at install time: ${installTime.length} of ${manifests.length}`);
+    if (installTime.length) {
+      for (const m of installTime.sort((a, b) => b.riskScore - a.riskScore)) {
+        console.log(`  ${m.name}@${m.version}  risk=${m.riskScore}`);
+        const scripts = m.capabilities.lifecycleScripts.scripts || {};
+        for (const key of INSTALL_TRIGGERING_SCRIPT_KEYS) {
+          if (scripts[key]) console.log(`      ${key}: ${scripts[key]}`);
+        }
       }
     }
-  }
 
-  manifests.sort((a, b) => b.riskScore - a.riskScore);
-  console.log('\nHighest capability surface:\n');
-  for (const m of manifests.slice(0, 20)) {
-    console.log('  ' + summaryLine(m));
-  }
-  console.log(`\nManifests written to ${flags.out}/`);
+    manifests.sort((a, b) => b.riskScore - a.riskScore);
+    console.log('\nHighest capability surface:\n');
+    for (const m of manifests.slice(0, 20)) {
+      console.log('  ' + summaryLine(m));
+    }
+    console.log(`\nManifests written to ${flags.out}/`);
 
-  if (skippedEscapes.length) {
-    // An escape attempt must fail the exit code, not just print a WARNING.
-    // Otherwise a CI pipeline checking only the exit code would treat this
-    // as a clean, passing run.
-    console.error(`capsurface scan-tree FAILED: ${skippedEscapes.length} package symlink(s) tried to escape the project boundary (see WARNING above).`);
-    process.exit(1);
+    if (errorCount) {
+      console.error(`capsurface scan-tree FAILED: ${errorCount} discovery error(s); inventory is incomplete.`);
+      process.exitCode = 2;
+    } else if (skippedEscapes.length) {
+      // An escape attempt must fail the exit code, not just print a WARNING.
+      // Otherwise a CI pipeline checking only the exit code would treat this
+      // as a clean, passing run.
+      console.error(`capsurface scan-tree FAILED: ${skippedEscapes.length} package symlink(s) tried to escape the project boundary (see WARNING above).`);
+      process.exitCode = 1;
+    } else {
+      snapshot.complete();
+      if (manifests.some(isAnalysisIncomplete)) {
+        console.error('capsurface scan-tree FAILED: incomplete package analysis; see manifest coverage.');
+        process.exitCode = 2;
+      }
+    }
+  } finally {
+    snapshot.close();
   }
 }
 
@@ -168,9 +188,7 @@ function cmdScanTree(args) {
  */
 function loadManifestsFromDir(dir) {
   const byName = new Map();
-  for (const file of fs.readdirSync(dir)) {
-    if (!file.endsWith('.json')) continue;
-    const m = readJson(path.join(dir, file));
+  for (const m of readManifests(dir)) {
     if (!byName.has(m.name)) byName.set(m.name, []);
     byName.get(m.name).push(m);
   }
@@ -213,6 +231,9 @@ function cmdBaseline(args) {
   const outFile = flags.out || 'capsurface.lock.json';
   const byName = loadManifestsFromDir(manifestsDir);
   const packages = {};
+  if ([...byName.values()].some((manifests) => manifests.some(isAnalysisIncomplete))) {
+    die('cannot approve incomplete analysis; fix the coverage errors and scan again');
+  }
   let manifestCount = 0;
   for (const [name, manifests] of byName) {
     manifests.sort((a, b) => compareVersions(a.version, b.version));
@@ -250,6 +271,7 @@ function installTimeEntries(manifestsDir) {
   let total = 0;
   for (const manifests of byName.values()) {
     for (const m of manifests) {
+      if (isAnalysisIncomplete(m)) die('cannot generate an allowlist from incomplete analysis; scan again after fixing coverage errors');
       total++;
       if (!m.capabilities.lifecycleScripts.installTriggering) continue;
       const id = `${m.name}@${m.version}`;
@@ -393,6 +415,12 @@ function cmdCheck(args) {
       for (const manifest of currentManifests) {
         totalCurrentManifests++;
         newPackages.push(manifest);
+        if (isAnalysisIncomplete(manifest)) {
+          anyEscalation = true;
+          const report = diffManifests(manifest, manifest);
+          report.baselineVersion = '(not baselined)';
+          escalations.push({ report, installPath: manifest.installPath });
+        }
       }
       continue;
     }
@@ -559,4 +587,8 @@ Usage:
   }
 }
 
-main();
+try {
+  main();
+} catch (error) {
+  die(error.message);
+}

@@ -20,12 +20,10 @@ jobs:
         with:
           node-version: 22
 
-      # npm 12 blocks install scripts unless package.json allows them.
-      # --strict-allow-scripts fails here instead of silently skipping a
-      # script a dependency expects to run, which is a different failure
-      # from the capability check below and worth keeping separate.
-      - name: Install
-        run: npm ci --strict-allow-scripts
+      # Even a previously allowed package may ship a compromised update.
+      # Inspect the new contents before allowing any install script to run.
+      - name: Install without running lifecycle scripts
+        run: npm ci --ignore-scripts
 
       # Pin the version. The ruleset decides what a baseline means, and
       # capsurface warns when the two disagree; floating this turns that
