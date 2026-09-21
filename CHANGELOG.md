@@ -6,6 +6,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `review` emits Markdown or JSON with the chosen predecessor, changes,
+  source evidence, coverage and stable review IDs. It includes informational
+  changes and can write a report even when the gate fails.
+- `approve --id ... --reason ...` updates one reviewed installation, records
+  the reason and preserves unrelated approvals. Changed manifests/baselines,
+  repeated IDs, incomplete scans and stale engines cannot be approved.
+  Baseline writes are locked and atomic.
+- The CI example summarizes changes against the PR target branch baseline,
+  separately from checking the proposed baseline. Snapshot metadata is retained
+  in uploaded artifacts.
+
 - Initial capability-aware supply-chain scanner: `scan`, `scan-tree`,
   `baseline`, `check`, `diff` commands. Computes a per-package capability
   manifest (filesystem, network, exec, env/credential access, dynamic

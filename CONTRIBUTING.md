@@ -2,7 +2,7 @@
 
 ## How it fits together
 
-Five modules, one direction of data flow, no framework. Small enough to read
+Small modules, one direction of data flow, no framework. Small enough to read
 in one sitting, which is the point: a security tool should be auditable by the
 person adopting it.
 
@@ -27,11 +27,14 @@ Where to change what:
 | Change how source is read or capabilities extracted | `lib/scanner.js` |
 | Fold obfuscated specifiers before the rules see them | `lib/normalize.js` |
 | Change what fails the build vs. what is only reported | `lib/diff.js` |
+| Match an installation to its approved predecessor | `lib/comparison.js` |
+| Explain changes or apply a selective approval | `lib/review.js`, `lib/approval.js` |
+| Read and publish scan inventories | `lib/snapshot.js` |
 | Change how packages are found on disk | `lib/discovery.js` |
 | Change CLI flags, output, exit codes | `bin/capsurface.js` |
 
 `lib/rules-version.js` hashes the detection rules and the scanner,
-normalizer, discovery and diff implementations (with line endings normalized).
+normalizer, discovery, diff and comparison implementations (with line endings normalized).
 Changing these changes that hash, and `check` warns that existing
 baselines were written by different rules. That is intentional: edit the engine and
 every committed baseline means something slightly different, which a security

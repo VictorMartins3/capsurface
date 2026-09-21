@@ -9,6 +9,8 @@ const { discoverPackageDirs } = require('../lib/discovery');
 const { INSTALL_TRIGGERING_SCRIPT_KEYS } = require('../lib/categories');
 const { RULES_VERSION } = require('../lib/rules-version');
 const { compareTrees } = require('../lib/comparison');
+const { buildReview, renderMarkdown, reviewId } = require('../lib/review');
+const { approve, baselinePackages: loadBaseline } = require('../lib/approval');
 const { beginSnapshot, readManifests } = require('../lib/snapshot');
 
 function die(msg) {
@@ -192,20 +194,6 @@ function loadManifestsFromDir(dir) {
   for (const m of readManifests(dir)) {
     if (!byName.has(m.name)) byName.set(m.name, []);
     byName.get(m.name).push(m);
-  }
-  return byName;
-}
-
-/**
- * Load capsurface.lock.json into the Map<name, Manifest[]> shape
- * loadManifestsFromDir uses. Both the current schema and the original
- * one-manifest-per-name schema are accepted, so a lock file committed by an
- * earlier version keeps working without a migration step.
- */
-function loadBaseline(lock) {
-  const byName = new Map();
-  for (const [name, value] of Object.entries(lock.packages || {})) {
-    byName.set(name, Array.isArray(value) ? value : [value]);
   }
   return byName;
 }
@@ -407,6 +395,7 @@ function cmdCheck(args) {
   const newPackages = entries.filter((entry) => entry.match.kind === 'new').map((entry) => entry.manifest);
   const escalations = entries.filter((entry) => entry.report.escalated).map((entry) => ({
     report: entry.report, installPath: entry.manifest.installPath, match: entry.match.kind,
+    id: reviewId(baselineByName.get(entry.manifest.name) || [], entry.manifest),
   }));
   const anyEscalation = escalations.length > 0;
   const totalCurrentManifests = entries.length;
@@ -431,8 +420,8 @@ function cmdCheck(args) {
         riskScore: m.riskScore,
         riskFlags: m.riskFlags,
       })),
-      escalations: escalations.map(({ report, installPath, match }) => ({
-        match,
+      escalations: escalations.map(({ report, installPath, match, id }) => ({
+        id, match,
         name: report.name,
         baselineVersion: report.baselineVersion,
         currentVersion: report.currentVersion,
@@ -455,15 +444,16 @@ function cmdCheck(args) {
     for (const m of newPackages) {
       console.log('  + ' + summaryLine(m));
     }
-    console.log('  (run "capsurface baseline" after review to accept these)\n');
+    console.log('  (run "capsurface review" to inspect and approve individual installations)\n');
     anyNewFailure = flags['fail-on-new'] === true;
   }
 
   if (escalations.length) {
     console.log(`CAPABILITY ESCALATIONS (${escalations.length}):`);
-    for (const { report: r, installPath } of escalations) {
+    for (const { report: r, installPath, id } of escalations) {
       const where = installPath ? `  [${installPath}]` : '';
       console.log(`\n  ${r.name}: ${r.baselineVersion} -> ${r.currentVersion}${where}  (risk delta ${r.riskScoreDelta === null ? 'unknown' : (r.riskScoreDelta >= 0 ? '+' : '') + r.riskScoreDelta})`);
+      console.log(`    review ID: ${id}`);
       for (const c of r.changes) {
         console.log(`    [${c.type}] ${c.detail}`);
       }
@@ -498,16 +488,42 @@ function cmdCheck(args) {
     // printing it here means going to find the README mid-review.
     const baselineArg = flags.baseline || 'capsurface.lock.json';
     console.error('capsurface check FAILED.\n');
-    console.error('Each entry above names a dependency that can do something it could not do');
-    console.error('when the baseline was approved. Look at the package and version named,');
-    console.error('then either reject the upgrade or accept the new surface with:\n');
-    console.error(`    capsurface baseline ${manifestsDir} --out ${baselineArg}\n`);
+    console.error('Review the changed surface, incomplete analysis or ambiguous predecessor:');
+    console.error(`    capsurface review ${manifestsDir} --baseline ${baselineArg}\n`);
+    console.error('To accept one reviewed installation, use approve with its --id and --reason.');
     console.error('Commit the updated baseline in the same change, so the approval is');
     console.error('reviewed alongside the upgrade that caused it.');
     process.exit(1);
   } else {
     console.log('capsurface check passed.');
   }
+}
+
+function cmdReview(args) {
+  const { positional, flags } = parseFlags(args);
+  if (!positional[0]) die('usage: capsurface review <manifests-dir> --baseline <file> [--json] [--out <file>] [--fail-on-new] [--report-only]');
+  const baselineFile = flags.baseline || 'capsurface.lock.json';
+  const { report } = buildReview(loadBaseline(readJson(baselineFile)), loadManifestsFromDir(positional[0]), flags['fail-on-new'] === true);
+  report.baseline = baselineFile;
+  report.reportOnly = flags['report-only'] === true;
+  const text = flags.json ? JSON.stringify(report, null, 2) + '\n' : renderMarkdown(report);
+  if (flags.out) {
+    fs.mkdirSync(path.dirname(flags.out), { recursive: true });
+    fs.writeFileSync(flags.out, text);
+    console.log(`Wrote review to ${flags.out}`);
+  } else {
+    process.stdout.write(text);
+  }
+  if (report.wouldFail && !report.reportOnly) process.exitCode = 1;
+}
+
+function cmdApprove(args) {
+  const { positional, flags } = parseFlags(args);
+  if (!positional[0]) die('usage: capsurface approve <manifests-dir> --baseline <file> --id <review-id> --reason <text>');
+  const baselineFile = flags.baseline || 'capsurface.lock.json';
+  const manifest = approve(baselineFile, loadManifestsFromDir(positional[0]), flags.id, flags.reason);
+  console.log(`Approved ${manifest.name}@${manifest.version}${manifest.installPath ? ` at ${manifest.installPath}` : ''}.`);
+  console.log(`Updated ${baselineFile}; commit the approval with the dependency change.`);
 }
 
 function cmdDiff(args) {
@@ -532,6 +548,10 @@ function main() {
       return cmdBaseline(rest);
     case 'check':
       return cmdCheck(rest);
+    case 'review':
+      return cmdReview(rest);
+    case 'approve':
+      return cmdApprove(rest);
     case 'diff':
       return cmdDiff(rest);
     case 'allowlist':
@@ -544,6 +564,8 @@ Usage:
   capsurface scan-tree <node_modules-dir> --out <manifests-dir>
   capsurface baseline <manifests-dir> [--out capsurface.lock.json]
   capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only] [--json]
+  capsurface review <manifests-dir> --baseline <file> [--json] [--out <file>] [--fail-on-new] [--report-only]
+  capsurface approve <manifests-dir> --baseline <file> --id <review-id> --reason <text>
   capsurface diff <baseline-manifest.json> <current-manifest.json>
   capsurface allowlist <manifests-dir> [--format npm|pnpm|json] [--names] [--out <file>]
 `);

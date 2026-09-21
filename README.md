@@ -223,6 +223,20 @@ lockfile dependency edges.
 A matching version is still scanned: a postinstall in one package can
 rewrite a sibling's files without changing its version.
 
+Review changes as Markdown (or add `--json`), then accept one installation
+with the ID from that report and a reason:
+
+```bash
+capsurface review .capsurface/manifests --baseline capsurface.lock.json --out review.md
+capsurface approve .capsurface/manifests --baseline capsurface.lock.json \
+  --id <review-id> --reason "Reviewed the new native build"
+```
+
+Approval updates only that installation and records the reason in the
+baseline. A changed scan or candidate baseline invalidates its review ID.
+Incomplete scans cannot be approved. See [the review workflow](docs/REVIEW.md)
+for exit codes, multiple versions, and PR summaries against the target branch.
+
 Produce the install-script allowlist npm 12 requires:
 
 This includes npm's implicit `node-gyp rebuild` when a package ships

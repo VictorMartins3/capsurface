@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -31,6 +33,17 @@ jobs:
       - name: Scan the installed tree
         run: npx --yes capsurface@0.1.0 scan-tree node_modules --out .capsurface/manifests
 
+      # A proposed baseline update must not hide the changes it approves.
+      - name: Read the target branch baseline
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: git show "$BASE_SHA:capsurface.lock.json" > "$RUNNER_TEMP/capsurface-base.json"
+
+      - name: Summarize changes against the target branch
+        run: |
+          npx --yes capsurface@0.1.0 review .capsurface/manifests --baseline "$RUNNER_TEMP/capsurface-base.json" --fail-on-new --report-only --out .capsurface/review.md
+          cat .capsurface/review.md >> "$GITHUB_STEP_SUMMARY"
+
       # Drop --report-only once the findings look like ones you want to
       # block on. Until then this runs, reports, and exits 0.
       - name: Check against the approved baseline
@@ -43,7 +56,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: capsurface-manifests
-          path: .capsurface/manifests
+          path: |
+            .capsurface/manifests
+            .capsurface/review.md
+          include-hidden-files: true
           retention-days: 14
 
 # A failure here means a dependency can do something it could not do when
@@ -52,11 +68,12 @@ jobs:
 # file the scanner can no longer read.
 #
 # Look at the named package and version before merging. If the change is
-# legitimate, regenerate the baseline locally and commit it in the same
-# pull request, so the approval is reviewed with the upgrade that caused it:
+# legitimate, approve the reviewed installation locally and commit the
+# baseline change in the same pull request:
 #
 #     npx capsurface@0.1.0 scan-tree node_modules --out .capsurface/manifests
-#     npx capsurface@0.1.0 baseline .capsurface/manifests --out capsurface.lock.json
+#     npx capsurface@0.1.0 review .capsurface/manifests --baseline capsurface.lock.json
+#     npx capsurface@0.1.0 approve .capsurface/manifests --baseline capsurface.lock.json --id <review-id> --reason "Reviewed the new capability"
 #
 # Renovate and Dependabot open one pull request per upgrade, which is what
 # makes this readable: the diff of capsurface.lock.json sits next to the

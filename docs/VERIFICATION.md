@@ -4,7 +4,7 @@ The full methodology behind the summary in the [README](../README.md): what was 
 
 ## Verification
 
-See `test/` (220 tests, `npm test`) and CHANGELOG.md for what was found and
+See `test/` (`npm test`) and CHANGELOG.md for what was found and
 fixed while pressure-testing this against real installs instead of only
 the bundled demo.
 
@@ -40,6 +40,21 @@ baseline migration: newly collected indicators may have existed previously
 but been absent from a truncated older manifest. Scan-time differences from
 the corpus comparison are not a performance claim; old scans ran first and
 new scans could benefit from filesystem caching.
+
+### Instance matching and selective review
+
+Nine comparison regressions cover upgrades borrowing another version's
+permissions, physical duplicates at the same version, Windows paths,
+relocated packages, pnpm ambiguity, equivalent surfaces, legacy baselines
+and the CLI gate. Fifteen review/approval tests exercise selective writes,
+stale and repeated IDs, concurrent approval locks, incomplete coverage,
+engine changes, Markdown escaping and report-only output. The complete
+local suite passes 244 tests; the bundled escalation demo still exits 1.
+
+Matching is conservative when a predecessor cannot be established. This
+stage does not claim a measured false-block rate on real upgrades and does
+not infer pnpm lockfile dependency edges. The 5,853-install scan comparison
+above measures detector changes from the preceding hardening stage.
 
 ### Earlier corpus measurements
 
