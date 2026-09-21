@@ -212,10 +212,16 @@ nobody has a baseline for yet, fires on the first upgrade and gets removed
 the same week. Drop the flag once the findings look like ones you want to
 block on.
 
-An approved version is compared against its own approved manifest, not
-skipped because the version string matches. A version number does not pin
-content: a postinstall in one package can rewrite a sibling's files without
-any version changing anywhere.
+Each installation is compared with its own baseline path first, then an
+exact version or a single available predecessor. Several candidates with
+identical approved surfaces are interchangeable; different surfaces require
+explicit review. Permissions are never pooled across versions. pnpm store
+paths change with versions, so upgrades with multiple possible predecessors
+can require review until approved explicitly. Matching does not yet read
+lockfile dependency edges.
+
+A matching version is still scanned: a postinstall in one package can
+rewrite a sibling's files without changing its version.
 
 Produce the install-script allowlist npm 12 requires:
 

@@ -4,10 +4,11 @@
 const fs = require('fs');
 const path = require('path');
 const { scanPackageDir } = require('../lib/scanner');
-const { diffManifests, unionOfManifests, isAnalysisIncomplete } = require('../lib/diff');
+const { diffManifests, isAnalysisIncomplete } = require('../lib/diff');
 const { discoverPackageDirs } = require('../lib/discovery');
 const { INSTALL_TRIGGERING_SCRIPT_KEYS } = require('../lib/categories');
 const { RULES_VERSION } = require('../lib/rules-version');
+const { compareTrees } = require('../lib/comparison');
 const { beginSnapshot, readManifests } = require('../lib/snapshot');
 
 function die(msg) {
@@ -402,52 +403,14 @@ function cmdCheck(args) {
     );
   }
 
-  let anyEscalation = false;
-  const newPackages = [];
-  const escalations = [];
-  let totalCurrentManifests = 0;
-  let totalBaselineManifests = 0;
-  for (const manifests of baselineByName.values()) totalBaselineManifests += manifests.length;
-
-  for (const [name, currentManifests] of currentByName) {
-    const baselineManifests = baselineByName.get(name);
-    if (!baselineManifests || baselineManifests.length === 0) {
-      for (const manifest of currentManifests) {
-        totalCurrentManifests++;
-        newPackages.push(manifest);
-        if (isAnalysisIncomplete(manifest)) {
-          anyEscalation = true;
-          const report = diffManifests(manifest, manifest);
-          report.baselineVersion = '(not baselined)';
-          escalations.push({ report, installPath: manifest.installPath });
-        }
-      }
-      continue;
-    }
-    // Computed once per package name, not once per installed version of
-    // that name. Diffing several nested/multi-version installs against
-    // the same baseline previously redid this Set-merging work per version.
-    const union = unionOfManifests(baselineManifests);
-    for (const manifest of currentManifests) {
-      totalCurrentManifests++;
-
-      // An approved version is compared against its own approved manifest,
-      // not against the union and not skipped. Skipping it assumed that a
-      // version number pins the content, which is the assumption an attacker
-      // subverts: a postinstall in one package rewriting a sibling's files
-      // never changes a version. Using its own manifest also stops a
-      // capability approved for a different version from excusing it here.
-      const approved = baselineManifests.find((b) => b.version === manifest.version);
-
-      // diffManifests already sets report.baselineVersion from the baseline
-      // it is given, so there is nothing to recompute.
-      const report = diffManifests(approved || union, manifest);
-      if (report.escalated) {
-        anyEscalation = true;
-        escalations.push({ report, installPath: manifest.installPath });
-      }
-    }
-  }
+  const entries = compareTrees(baselineByName, currentByName);
+  const newPackages = entries.filter((entry) => entry.match.kind === 'new').map((entry) => entry.manifest);
+  const escalations = entries.filter((entry) => entry.report.escalated).map((entry) => ({
+    report: entry.report, installPath: entry.manifest.installPath, match: entry.match.kind,
+  }));
+  const anyEscalation = escalations.length > 0;
+  const totalCurrentManifests = entries.length;
+  const totalBaselineManifests = [...baselineByName.values()].reduce((sum, manifests) => sum + manifests.length, 0);
 
   // A report nobody can aggregate is a report nobody keeps. --report-only
   // asks a team to collect weeks of findings before switching the gate on,
@@ -468,7 +431,8 @@ function cmdCheck(args) {
         riskScore: m.riskScore,
         riskFlags: m.riskFlags,
       })),
-      escalations: escalations.map(({ report, installPath }) => ({
+      escalations: escalations.map(({ report, installPath, match }) => ({
+        match,
         name: report.name,
         baselineVersion: report.baselineVersion,
         currentVersion: report.currentVersion,
@@ -499,7 +463,7 @@ function cmdCheck(args) {
     console.log(`CAPABILITY ESCALATIONS (${escalations.length}):`);
     for (const { report: r, installPath } of escalations) {
       const where = installPath ? `  [${installPath}]` : '';
-      console.log(`\n  ${r.name}: ${r.baselineVersion} -> ${r.currentVersion}${where}  (risk delta ${r.riskScoreDelta >= 0 ? '+' : ''}${r.riskScoreDelta})`);
+      console.log(`\n  ${r.name}: ${r.baselineVersion} -> ${r.currentVersion}${where}  (risk delta ${r.riskScoreDelta === null ? 'unknown' : (r.riskScoreDelta >= 0 ? '+' : '') + r.riskScoreDelta})`);
       for (const c of r.changes) {
         console.log(`    [${c.type}] ${c.detail}`);
       }

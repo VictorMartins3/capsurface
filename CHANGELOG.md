@@ -52,6 +52,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Match upgrades to an installation path, exact version, or unique baseline
+  instead of pooling permissions from every approved version. Different
+  possible predecessors now require review; equivalent approved surfaces
+  remain interchangeable. This also keeps same-version physical installs
+  from borrowing each other's capabilities.
+
 - Endpoint and env-var collection no longer stops at 20/40 entries. The
   complete collected sets feed comparison and credential scoring, independently
   of the five evidence snippets shown per category. Resource budgets (10,000
