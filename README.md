@@ -10,6 +10,8 @@ access, process execution, environment/credential access, dynamic code
 execution, install-time lifecycle scripts) and flags escalation across
 versions in CI, before a compromised release gets merged.
 
+![capsurface catching a tampered dependency escalate its capabilities and fail the check in CI](https://raw.githubusercontent.com/VictorMartins3/capsurface/main/docs/demo.gif)
+
 ## Quick start
 
 No dependencies, no build step.
