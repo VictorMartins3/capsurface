@@ -25,6 +25,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Manifest schema v3: `skippedLargeFiles` records any source file skipped
   for exceeding the 15 MB scan cap, so reduced coverage shows up in the
   manifest instead of staying silent.
+- ESM dynamic import of a literal specifier (`import('child_process')`,
+  `await import('node:dns')`) now reads as acquiring the module, the same as
+  `require`. `typeof import(...)` and any `import(...)` in a `.d.ts` file are
+  blanked as the type queries they are, so `@types/node`'s
+  `typeof import("child_process")` no longer credits its consumers with
+  process execution. Measured on 3,248 installed packages: exec +3, all real
+  dynamic imports in shipped `bin/` files (lib0, marked); no other capability
+  moved and no false positives.
 
 ### Fixed
 

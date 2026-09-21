@@ -49,6 +49,12 @@ const CORPUS = [
   // categories the per-line pass left absent.
   ['multi-line require', 'exec', "const cp = require(\n  'child_process'\n);\n", true],
 
+  // ESM dynamic import of a literal specifier: the same acquisition as
+  // require, and increasingly the only form modern code uses.
+  ['dynamic import', 'exec', "import('child_process').then(cp => cp.execSync('id'));\n", true],
+  ['dynamic import node:', 'exec', "const cp = await import('node:child_process');\n", true],
+  ['dynamic import, network', 'network', "const dns = await import('node:dns');\n", true],
+
   // Still out of reach.
   // The value only exists once the program runs.
   ['computed at runtime', 'exec', "const cp = require(process.env.MOD_NAME);\n", false],
@@ -67,5 +73,28 @@ describe('evasion corpus', () => {
   test('the corpus covers both outcomes', () => {
     assert.ok(CORPUS.some(([, , , c]) => c), 'at least one catch');
     assert.ok(CORPUS.some(([, , , c]) => !c), 'at least one documented miss');
+  });
+});
+
+describe('type-position import() is not a runtime acquisition', () => {
+  test('typeof import() is a TypeScript type query, not exec', () => {
+    const tmp = mkTmpDir('evasion');
+    const dir = writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' },
+      { 'index.ts': 'export type Reg = { child_process: typeof import("child_process") };\n' });
+    assert.equal(scanPackageDir(dir).capabilities.exec.present, false);
+  });
+
+  test('import() in a .d.ts declaration file is a type, not exec', () => {
+    const tmp = mkTmpDir('evasion');
+    const dir = writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' },
+      { 'types.d.ts': 'export declare function run(): Promise<import("child_process").ChildProcess>;\n' });
+    assert.equal(scanPackageDir(dir).capabilities.exec.present, false);
+  });
+
+  test('a real dynamic import in a .ts file still counts', () => {
+    const tmp = mkTmpDir('evasion');
+    const dir = writePackage(tmp, 'pkg', { name: 'pkg', version: '1.0.0' },
+      { 'index.ts': "async function f() { const cp = await import('child_process'); return cp; }\n" });
+    assert.equal(scanPackageDir(dir).capabilities.exec.present, true);
   });
 });
