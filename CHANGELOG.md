@@ -33,6 +33,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   process execution. Measured on 3,248 installed packages: exec +3, all real
   dynamic imports in shipped `bin/` files (lib0, marked); no other capability
   moved and no false positives.
+- Two further acquisition spellings now read as loading the module: the
+  optional call `require?.('child_process')`, and `._load('child_process')`,
+  Node's internal loader reached through `module.constructor._load` to slip
+  past a require hook a defender installed. Both stay constrained to the
+  dangerous-module literal, so a `_load` call that passes a variable (the `esm`
+  package's loader, for one) does not match. Zero capability changed on the
+  3,248-package production corpus.
 
 ### Fixed
 

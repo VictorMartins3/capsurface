@@ -55,6 +55,13 @@ const CORPUS = [
   ['dynamic import node:', 'exec', "const cp = await import('node:child_process');\n", true],
   ['dynamic import, network', 'network', "const dns = await import('node:dns');\n", true],
 
+  // Reaching the module without spelling `require(`. `._load` is Node's
+  // internal loader, reached through `module.constructor` to slip past a
+  // require hook a scanner or defender installed; `require?.()` is a plain
+  // optional call. Both stay tied to the dangerous-module literal.
+  ['optional call require?.()', 'exec', "require?.('child_process').execSync('id');\n", true],
+  ['loader bypass, constructor._load', 'exec', "const cp = module.constructor._load('child_process');\ncp.execSync('id');\n", true],
+
   // Still out of reach.
   // The value only exists once the program runs.
   ['computed at runtime', 'exec', "const cp = require(process.env.MOD_NAME);\n", false],
