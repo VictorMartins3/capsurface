@@ -529,7 +529,7 @@ function cmdApprove(args) {
   const { positional, flags } = parseFlags(args);
   if (!positional[0]) die('usage: capsurface approve <manifests-dir> --baseline <file> --id <review-id> --reason <text>');
   const baselineFile = flags.baseline || 'capsurface.lock.json';
-  const manifest = approve(baselineFile, loadManifestsFromDir(positional[0]), flags.id, flags.reason);
+  const manifest = approve(baselineFile, loadManifestsFromDir(positional[0]), flags.id, flags.reason, flags.expires);
   console.log(`Approved ${manifest.name}@${manifest.version}${manifest.installPath ? ` at ${manifest.installPath}` : ''}.`);
   console.log(`Updated ${baselineFile}; commit the approval with the dependency change.`);
 }
@@ -573,7 +573,7 @@ Usage:
   capsurface baseline <manifests-dir> [--out capsurface.lock.json]
   capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only] [--json]
   capsurface review <manifests-dir> --baseline <file> [--json | --format markdown|json|sarif] [--lockfile <package-lock.json>] [--project-root <dir>] [--out <file>] [--fail-on-new] [--report-only]
-  capsurface approve <manifests-dir> --baseline <file> --id <review-id> --reason <text>
+  capsurface approve <manifests-dir> --baseline <file> --id <review-id> --reason <text> [--expires <UTC-timestamp>]
   capsurface diff <baseline-manifest.json> <current-manifest.json>
   capsurface allowlist <manifests-dir> [--format npm|pnpm|json] [--names] [--out <file>]
 `);
