@@ -27,6 +27,7 @@ function parseFlags(argv) {
     const a = argv[i];
     if (a.startsWith('--')) {
       const key = a.slice(2);
+      if (key === 'deep') { flags.deep = true; continue; }
       const next = argv[i + 1];
       if (next !== undefined && !next.startsWith('--')) {
         flags[key] = next;
@@ -64,7 +65,7 @@ function cmdScan(args) {
   const dir = positional[0];
   if (!dir) die('usage: capsurface scan <package-dir> [--out file.json]');
   if (!fs.existsSync(dir)) die(`directory not found: ${dir}`);
-  const manifest = scanPackageDir(dir);
+  const manifest = scanPackageDir(dir, { deep: flags.deep });
   if (flags.out) {
     writeJson(flags.out, manifest);
     console.log(`wrote ${flags.out}`);
@@ -103,6 +104,7 @@ function cmdScanTree(args) {
       die(`--boundary directory not found: ${flags.boundary}`);
     }
   }
+  if (flags.deep) require('../lib/ast-imports').loadParser();
   const snapshot = beginSnapshot(flags.out);
   try {
     const { dirs: pkgDirs, skippedEscapes, errors, errorCount } = discoverPackageDirs(rootDir, discoverOpts);
@@ -119,7 +121,7 @@ function cmdScanTree(args) {
     const manifests = [];
     const usedFilenames = new Set();
     for (const dir of pkgDirs) {
-      const manifest = scanPackageDir(dir);
+      const manifest = scanPackageDir(dir, { deep: flags.deep });
       manifest.installPath = path.relative(rootDir, dir);
       manifests.push(manifest);
 
@@ -568,8 +570,8 @@ function main() {
       console.log(`capsurface: capability-aware supply-chain scanner
 
 Usage:
-  capsurface scan <package-dir> [--out manifest.json]
-  capsurface scan-tree <node_modules-dir> --out <manifests-dir>
+  capsurface scan <package-dir> [--out manifest.json] [--deep]
+  capsurface scan-tree <node_modules-dir> --out <manifests-dir> [--deep]
   capsurface baseline <manifests-dir> [--out capsurface.lock.json]
   capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only] [--json]
   capsurface review <manifests-dir> --baseline <file> [--json | --format markdown|json|sarif] [--lockfile <package-lock.json>] [--project-root <dir>] [--out <file>] [--fail-on-new] [--report-only]

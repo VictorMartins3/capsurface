@@ -149,12 +149,12 @@ import references from `preinstall`, `install` and `postinstall`. It runs only
 for packages with non-inert installation commands. It never executes a script
 or loads package code. `prepare` is not treated as a registry-install entry.
 
-The first version accepts direct commands such as `node install.js` and
+Supported entries are direct commands such as `node install.js` and
 `node "scripts/install file.js"`. Shell combinations, environment assignments,
 Node flags, script arguments, inline code and native build commands are
 reported as `unsupported-command`, including npm's implicit node-gyp build.
 
-For recognized entries, the scanner follows literal `require`, simple
+By default, for recognized entries, the scanner follows literal `require`, simple
 single-line ESM imports/re-exports and literal `import()` references within
 the package. CommonJS file lookup checks the exact filename, then `.js`,
 `.json` and `.node`; only files included in source analysis become graph
@@ -184,6 +184,58 @@ resolved. Unrecognized syntax can leave references unreported, so zero
 unresolved references does not establish a complete graph. Reaching network
 and credential indicators does not demonstrate that credentials flow to the
 network. Risk scores and blocking rules are unchanged.
+
+### Experimental AST import analysis
+
+`scan` and `scan-tree` accept `--deep` to replace the installation import lexer
+with an [Acorn](https://github.com/acornjs/acorn/tree/master/acorn) AST pass.
+Install the supported parser alongside your trusted capsurface installation:
+
+```bash
+# From a capsurface checkout; omit --deep to keep the dependency-free scanner.
+npm install --no-save --package-lock=false --ignore-scripts acorn@8.15.0
+node bin/capsurface.js scan /path/to/package --deep --out /tmp/package.json
+node bin/capsurface.js scan-tree /path/to/node_modules --deep --out /tmp/manifests
+```
+
+For a packaged CLI, install `capsurface` and `acorn@8.15.0` in the same trusted
+tool environment. Acorn is an [optional peer dependency](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/#peerdependenciesmeta),
+not installed automatically. Scans never download it. Missing or incompatible
+parser versions fail before writing a scan inventory. The parser is resolved
+from capsurface's installation, not by searching the scanned package.
+
+This mode resolves immutable `const` aliases of `require`, `createRequire`
+from `module`/`node:module`, named and namespace imports, escaped string literals,
+string concatenation and static template interpolation. `createRequire` must
+use the current file's unshadowed `__filename` or `import.meta.url`; other bases
+are explicitly unresolved. Lexical bindings, parameters, catch bindings and
+hoisted `var` declarations shadow loaders. Reassigned bindings are not trusted.
+It also visits actual calls inside template interpolation without treating
+quoted examples as code.
+
+ECMAScript 2022 is the syntax ceiling. `.cjs` and `.mjs` select their respective
+source modes; other JavaScript files use the nearest package.json `type`.
+Node's syntax-based module detection is not emulated. TypeScript, JSX, parse
+errors, dynamic scopes (`eval`/`with`), observed module namespace mutations or
+escapes into unknown calls, and resource limits leave explicit unavailable
+references. No parser plugins, project configuration or package code are loaded.
+Each file has a 1 MiB source budget, 100,000-token/node/evaluation budgets and
+32 levels of static value resolution, in addition to the graph's existing limits.
+
+Deep context has `installContext.schemaVersion: 2`, `analysis: ast-import-graph`
+and `ast` metadata with the parser version and processed/unavailable file counts.
+The outer manifest remains schema v8. Reviews retain this context in Markdown,
+JSON and SARIF. A parsed file does **not** mean every import was resolved:
+mutable aliases, wrapper functions, values passed across calls, object-held
+loaders and runtime monkey-patching are not modeled. Existing package-local
+resolution and installation-command restrictions still apply.
+
+The capability scanner, evidence, risk scores, approvals and blocking rules
+remain unchanged. AST failures limit explanatory context and do not change
+source-coverage status or add a new blocking rule. In particular, this mode does
+not yet detect capabilities hidden behind an alias that the source-text rules
+miss. Use the same scan mode for reproducible review IDs. The composite Action
+continues to use the default scanner; it does not install the optional parser.
 
 ## Filesystem operations
 

@@ -31,7 +31,7 @@ Where to change what:
 | Match an installation to its approved predecessor | `lib/comparison.js` |
 | Explain changes or apply a selective approval | `lib/review.js`, `lib/approval.js` |
 | Collect and explain file-level capability relationships | `lib/source-context.js`, `lib/scanner.js` |
-| Explain potential import paths from installation scripts | `lib/install-context.js` |
+| Explain potential import paths from installation scripts | `lib/install-context.js`, `lib/ast-imports.js` |
 | Hash installed content or enforce approval expiry | `lib/content-integrity.js`, `lib/approval-policy.js` |
 | Explain npm dependency origins | `lib/provenance.js` |
 | Export review results to SARIF | `lib/sarif.js` |
@@ -42,7 +42,7 @@ Where to change what:
 
 `lib/rules-version.js` hashes the detection rules and the scanner,
 normalizer, discovery, diff, comparison, filesystem-operation, content-integrity
-approval-policy, source-context and install-context implementations (with line endings normalized).
+approval-policy, source-context, install-context and AST import implementations (with line endings normalized).
 Changing these changes that hash, and `check` warns that existing
 baselines were written by different rules. That is intentional: edit the engine and
 every committed baseline means something slightly different, which a security
@@ -63,7 +63,8 @@ Two decisions shape everything:
 
 ## Setup
 
-No install step. The tool itself has zero dependencies.
+No install step. The default scanner has zero dependencies. Experimental AST import context
+uses an optional, exact-version Acorn peer; no parser is loaded in normal scans.
 
 ```bash
 git clone <this repo>
@@ -104,6 +105,18 @@ npm test                        # needs Node >=18 for node:test; the CLI itself 
 - Dev-only tooling (the test runner) can rely on Node's built-ins (`node:test`,
   `node:assert`) for the same reason. No new dev dependencies without a good
   reason either.
+
+The optional AST mode uses Acorn instead of implementing or vendoring a JavaScript
+parser. It has no transitive dependencies and is only loaded for `--deep`.
+The supported parser version is pinned in both the peer declaration and loader;
+updates need AST regressions and corpus measurements. To work on that mode:
+
+```bash
+npm install --no-save --package-lock=false --ignore-scripts acorn@8.15.0
+npm run test:deep
+```
+
+Keep the normal regression and integration jobs independent of this install.
 
 ## Commits and pull requests
 

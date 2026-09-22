@@ -7,6 +7,11 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- Experimental `scan --deep` and `scan-tree --deep` import context, using optional
+  Acorn 8.15.0 to resolve immutable loader aliases, `createRequire` and static
+  templates with lexical scopes. Unavailable analysis is reported explicitly;
+  capability detection and blocking behavior are unchanged.
+
 - Potential local import paths from supported installation commands, with
   network/credential locations and unresolved-reference reasons in reviews.
 - File-level correlation of network and credential indicators, with original

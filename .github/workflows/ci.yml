@@ -25,6 +25,22 @@ jobs:
       - run: npm test
       - run: npm run test:integration
 
+  deep:
+    name: optional AST analysis (node ${{ matrix.node }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [18, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0
+      - run: npm run test:deep
+
   # The test runner needs Node 18; the shipped CLI claims Node 14. Prove it.
   floor:
     name: cli on the oldest supported node
@@ -45,6 +61,12 @@ jobs:
             echo "check passed on the compromised fixture, which is a regression"
             exit 1
           fi
+
+      - name: Check optional AST mode on Node 14
+        run: |
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0
+          node bin/capsurface.js scan examples/malicious-pkg-v2 --deep --out /tmp/deep.json
+          node -e "if (require('/tmp/deep.json').installContext.analysis !== 'ast-import-graph') process.exit(1)"
 
   review-action:
     name: dependency review action
