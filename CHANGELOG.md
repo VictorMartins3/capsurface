@@ -7,6 +7,13 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- Optional TypeScript, declaration-file, JSX and TSX analysis through pinned
+  acorn-typescript 1.4.13, with erased type syntax, typed aliases, scope handling
+  and explicit unsupported runtime constructs. Missing typed-parser support
+  keeps deep scans incomplete.
+- Source discovery includes `.mts` and `.cts`, including declaration variants,
+  in basic and deep scans.
+
 - Experimental `scan --deep` and `scan-tree --deep` capability detection and
   import context, using optional Acorn 8.15.0 to resolve immutable loader aliases,
   `createRequire` and static templates with lexical scopes. Acquired modules

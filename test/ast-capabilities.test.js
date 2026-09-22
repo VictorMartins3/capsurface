@@ -72,7 +72,7 @@ test('AST network indicators reach file correlation, installation paths and revi
 });
 
 test('deep failures block scans and selective approvals with bounded coverage evidence', (t) => {
-  const other = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`bad${i}.ts`, 'const x: string = "value";']));
+  const other = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`bad${i}.ts`, 'const x: = ;']));
   const f = fixture(t, 'const =', {}, other);
   const deep = f.deep();
   assert.equal(deep.astCoverage.filesFailed, 13);
@@ -86,7 +86,7 @@ test('deep failures block scans and selective approvals with bounded coverage ev
   const current = new Map([['pkg', [deep]]]);
   const review = buildReview(new Map(), current);
   assert.throws(() => approve(baseline, current, review.selections[0].id, 'reviewed'), /cannot approve incomplete analysis/);
-  assert.match(renderMarkdown(review.report).replace(/\\/g, ''), /ast-unsupported-syntax/);
+  assert.match(renderMarkdown(review.report).replace(/\\/g, ''), /ast-parse-error/);
   assert.deepEqual(renderSarif(review.report).runs[0].results[0].properties.astCoverage, deep.astCoverage);
 });
 

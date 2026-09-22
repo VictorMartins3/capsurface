@@ -29,6 +29,35 @@ and URI containment. Generated SARIF has also been validated against the
 repository with the feature enabled; artifact validation alone does not test
 that integration.
 
+### TypeScript and JSX coverage
+
+Compared basic and deep scans at `b6bcca7` with engine `b59e5bac6ccd` on
+5,853 physical installations in uptime-kuma, documenso, outline and nocodb.
+The local runtime was Node 26.8.1 with Acorn 8.15.0 and acorn-typescript 1.4.13.
+
+| Measurement | Before | After |
+| --- | ---: | ---: |
+| Files submitted to AST analysis | 206,328 | 214,131 |
+| Files with unavailable AST analysis | 91,551 | 29,823 |
+| Installations with incomplete deep coverage | 3,800 | 1,767 |
+
+Of those installations, 2,096 gained complete deep coverage. Another 63 became
+incomplete because newly discovered `.mts`/`.cts` declaration files could not
+be parsed. Unsupported runtime TypeScript, parser syntax gaps, dynamic scopes
+and resource limits remain explicit failures; deep mode is still experimental.
+
+No capability category appeared or disappeared in either mode, and no basic
+risk record changed. One basic network indicator record changed ordering in
+`@better-auth/core` after additional declaration files were read; its endpoint
+set and evidence were unchanged. Discovery,
+basic source coverage and installed-content hashing completed without errors.
+The 334 default tests, 29 optional-parser tests, offline npm integration and
+escalation demo passed locally. CI also exercises typed source on Node 14.
+
+The corpus contains repeated physical installations and the previously documented
+synthetic abort-controller compromise. These results measure analysis coverage,
+not malware-detection precision or performance. No dependency scripts ran.
+
 ### AST module-acquisition capabilities
 
 Compared the scanner at `5a54746` with both basic and deep scans on 5,853
