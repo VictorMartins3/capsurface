@@ -73,8 +73,19 @@ test('rejects unsupported or invalid lockfiles and reports missing origins expli
   assert.throws(() => fixture({ '../escape': {} }).read(), /root package/);
   assert.throws(() => fixture({ '': {}, '../escape': {} }).read(), /invalid lockfile/);
   const f = fixture({ '': {} });
+  fs.mkdirSync(path.join(f.root, 'other'));
   assert.throws(() => loadProvenance(f.file, path.join(f.root, 'other')), /inside/);
   assert.equal(f.read()(manifest('missing')).status, 'unavailable');
   assert.match(f.read()({ name: 'missing', version: '1' }).reason, /no installation path/);
   assert.match(f.read()(manifest('x', '../../elsewhere')).reason, /outside/);
+});
+
+test('accepts different directory aliases for the same project and rejects escaping links', () => {
+  const f = fixture({ '': {} });
+  const aliases = mkTmpDir('provenance-alias');
+  const alias = path.join(aliases, 'project');
+  fs.symlinkSync(f.root, alias, 'junction');
+  assert.doesNotThrow(() => loadProvenance(f.file, alias));
+  assert.doesNotThrow(() => loadProvenance(path.join(alias, 'package-lock.json'), f.root));
+  assert.throws(() => loadProvenance(path.join(alias, 'package-lock.json'), aliases), /inside/);
 });
