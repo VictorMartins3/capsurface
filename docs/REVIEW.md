@@ -188,7 +188,9 @@ network. Risk scores and blocking rules are unchanged.
 ### Experimental AST import analysis
 
 `scan` and `scan-tree` accept `--deep` to replace the installation import lexer
-with an [Acorn](https://github.com/acornjs/acorn/tree/master/acorn) AST pass.
+with an [Acorn](https://github.com/acornjs/acorn/tree/master/acorn) AST pass and
+add module-acquisition capability detection across every scanned source file.
+Packages without installation scripts receive the same capability analysis.
 Install the supported parser alongside your trusted capsurface installation:
 
 ```bash
@@ -224,18 +226,41 @@ Each file has a 1 MiB source budget, 100,000-token/node/evaluation budgets and
 
 Deep context has `installContext.schemaVersion: 2`, `analysis: ast-import-graph`
 and `ast` metadata with the parser version and processed/unavailable file counts.
-The outer manifest remains schema v8. Reviews retain this context in Markdown,
-JSON and SARIF. A parsed file does **not** mean every import was resolved:
+Manifest schema v9 also records `analysisProfile` and package-wide `astCoverage`.
+Reviews retain this context in Markdown, JSON and SARIF. A parsed file does **not** mean every import was resolved:
 mutable aliases, wrapper functions, values passed across calls, object-held
 loaders and runtime monkey-patching are not modeled. Existing package-local
 resolution and installation-command restrictions still apply.
 
-The capability scanner, evidence, risk scores, approvals and blocking rules
-remain unchanged. AST failures limit explanatory context and do not change
-source-coverage status or add a new blocking rule. In particular, this mode does
-not yet detect capabilities hidden behind an alias that the source-text rules
-miss. Use the same scan mode for reproducible review IDs. The composite Action
-continues to use the default scanner; it does not install the optional parser.
+AST module acquisition supplements the source-text scanner. Recognized modules
+add filesystem, network, process-execution, dynamic-evaluation or native-code
+capabilities, with original file/line evidence and the resolved specifier.
+Existing scoring and capability-escalation rules then apply. Network findings
+also feed file correlation and installation-path context. Unknown specifiers
+on recognized loaders contribute `unresolvedRequire`; they do not become an
+invented capability. This pass does not yet attribute filesystem operations,
+aliased `fetch`, environment enumeration or data flow, and does not remove
+false positives from the source-text scanner.
+
+`analysisProfile` is `source-v1` for basic scans and `source-ast-v1` for deep
+scans. Older manifests without a profile are treated as basic scans. A current
+basic scan fails comparison against a deep baseline, including when capabilities
+are identical. Baselines with different profiles are not interchangeable when
+matching duplicate installations. Rescan with `--deep` to retain that coverage.
+
+`astCoverage` records parser identity, analyzed/failed file counts and up to ten
+file/line/reason samples, retained in Markdown, JSON and SARIF. Unsupported
+syntax, parse failures and resource limits now make the whole deep scan
+incomplete: `scan`/`scan-tree` exit 2, checks fail and selective approval is
+rejected. A successful parse still does not prove complete runtime visibility;
+unsupported aliases and dynamic values remain analysis limitations.
+
+This is a deliberate change from the earlier experimental context-only mode:
+rescan both sides of a review before interpreting new capabilities as package
+changes. TypeScript/JSX-heavy trees may remain unsuitable for strict deep scans.
+The composite Action uses basic scanning and cannot satisfy a deep baseline;
+use the CLI in CI with an explicitly provisioned trusted parser environment.
+No parser is installed or fetched during a scan.
 
 ## Filesystem operations
 
