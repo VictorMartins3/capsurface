@@ -23,6 +23,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm test
+      - run: npm run test:integration
 
   # The test runner needs Node 18; the shipped CLI claims Node 14. Prove it.
   floor:

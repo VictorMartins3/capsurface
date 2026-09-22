@@ -56,6 +56,25 @@ stage does not claim a measured false-block rate on real upgrades and does
 not infer pnpm lockfile dependency edges. The 5,853-install scan comparison
 above measures detector changes from the preceding hardening stage.
 
+### Packed CLI and npm integration
+
+`npm run test:integration` builds local tarballs for the CLI and fixture
+dependencies, installs the scanner outside the fixture project, and performs
+a real `npm ci --ignore-scripts` upgrade offline. It checks that lifecycle
+hooks and a competing project-local `capsurface` binary never execute.
+The upgraded package escalates; approving it leaves a newly added package
+blocked until separately approved. A review against a baseline read with
+`git show` remains unchanged after the proposed baseline is approved.
+An interrupted scan still returns 2 with `--report-only`.
+
+Local validation passed all 244 unit/regression tests plus this integration
+test on Node 26.8.1, and the bundled demo still caught its escalation.
+Both workflow YAML files parse. The integration test is wired into the
+existing Node/OS CI matrix, but hosted GitHub execution, artifact upload and
+PR-summary rendering have not been validated remotely. The adoption example
+requires an npm lockfile, a committed initial baseline and a published CLI
+version containing the new commands.
+
 ### Earlier corpus measurements
 
 Discovery coverage, tested against a real 462 MB / 12,398-file tree

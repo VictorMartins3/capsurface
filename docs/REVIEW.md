@@ -69,17 +69,24 @@ assessed separately from an actual package capability change.
 
 ## Pull request summaries
 
-The [example workflow](../.github/workflows/capsurface.yml) reads the baseline
+The [example workflow](../examples/workflows/capsurface.yml) reads the baseline
 from the PR target commit for its review summary, then checks the proposed
 baseline separately. This keeps requested permissions visible even when
 the PR updates its own baseline. Commit an initial baseline on the target
-branch before enabling the workflow.
+branch before enabling the workflow. Copy the example to
+`.github/workflows/capsurface.yml` in the consuming project, which must have
+an npm lockfile. It is not an active workflow in this dependency-free repo.
 
 The workflow retains its adoption-mode `--report-only` check. Remove that
-flag from the check step to enforce the gate, and use branch protection and
-code review for baseline changes. The summary does not automatically approve
+flag from the check step to enforce the gate (including new packages), and
+use branch protection and code review for baseline changes. The summary does not automatically approve
 or reject a proposed baseline change. Use a published Capsurface version
-that includes these commands when adopting the pinned workflow.
+that includes these commands when adopting the pinned workflow; the `0.1.0`
+pin is a release placeholder, not proof that these unreleased commands are
+available on npm. The scanner is installed in `RUNNER_TEMP` with scripts
+disabled and invoked by its absolute path, keeping project-local binaries
+out of scanner selection. Project dependencies are also installed with
+scripts disabled.
 
 Markdown is appended to `GITHUB_STEP_SUMMARY`, which GitHub renders in the
 workflow run; it does not post a PR comment or need comment-write access.

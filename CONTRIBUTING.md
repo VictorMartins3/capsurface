@@ -66,7 +66,9 @@ npm test                        # needs Node >=18 for node:test; the CLI itself 
 
 ## Before opening a PR
 
-- `npm test` passes (`node --test test/*.test.js`).
+- `npm test` and `npm run test:integration` pass. The integration test needs
+  npm and Git; it packs local fixtures and the CLI, installs them offline with
+  lifecycle scripts disabled, and exercises review and selective approval.
 - `./examples/run-demo.sh` still catches the bundled escalation fixture.
 - New behavior has a regression test in `test/`. If you're fixing a bug, the
   test should fail on the old code and pass on the new code. That is what makes

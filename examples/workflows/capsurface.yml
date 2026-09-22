@@ -6,6 +6,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'capsurface.lock.json'
+      - '.github/workflows/capsurface.yml'
 
 permissions:
   contents: read
@@ -27,11 +28,17 @@ jobs:
       - name: Install without running lifecycle scripts
         run: npm ci --ignore-scripts
 
+      # Install the scanner outside the project so a dependency-provided bin
+      # cannot shadow it. Choose a published version with review/approve support.
+      - name: Install the pinned scanner
+        working-directory: ${{ runner.temp }}
+        run: npm install --prefix "$RUNNER_TEMP/capsurface-tool" --ignore-scripts --no-audit --no-fund --package-lock=false --save-exact capsurface@0.1.0
+
       # Pin the version. The ruleset decides what a baseline means, and
       # capsurface warns when the two disagree; floating this turns that
       # warning into noise on unrelated pull requests.
       - name: Scan the installed tree
-        run: npx --yes capsurface@0.1.0 scan-tree node_modules --out .capsurface/manifests
+        run: node "$RUNNER_TEMP/capsurface-tool/node_modules/capsurface/bin/capsurface.js" scan-tree node_modules --out .capsurface/manifests
 
       # A proposed baseline update must not hide the changes it approves.
       - name: Read the target branch baseline
@@ -41,13 +48,13 @@ jobs:
 
       - name: Summarize changes against the target branch
         run: |
-          npx --yes capsurface@0.1.0 review .capsurface/manifests --baseline "$RUNNER_TEMP/capsurface-base.json" --fail-on-new --report-only --out .capsurface/review.md
+          node "$RUNNER_TEMP/capsurface-tool/node_modules/capsurface/bin/capsurface.js" review .capsurface/manifests --baseline "$RUNNER_TEMP/capsurface-base.json" --fail-on-new --report-only --out .capsurface/review.md
           cat .capsurface/review.md >> "$GITHUB_STEP_SUMMARY"
 
       # Drop --report-only once the findings look like ones you want to
       # block on. Until then this runs, reports, and exits 0.
       - name: Check against the approved baseline
-        run: npx --yes capsurface@0.1.0 check .capsurface/manifests --baseline capsurface.lock.json --report-only
+        run: node "$RUNNER_TEMP/capsurface-tool/node_modules/capsurface/bin/capsurface.js" check .capsurface/manifests --baseline capsurface.lock.json --fail-on-new --report-only
 
       # The manifests say which file and line produced each finding, which
       # is what a reviewer needs and what the job log truncates.

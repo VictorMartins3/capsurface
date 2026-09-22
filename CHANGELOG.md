@@ -6,6 +6,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- An offline npm integration test installs the packed CLI and dependency
+  upgrades, then verifies committed-baseline review, selective approval,
+  new-package gating and rejection of interrupted scans. The existing CI
+  matrix runs it on Linux, macOS and Windows.
+- The adoption workflow lives under `examples/workflows` rather than running
+  in this dependency-free repository. It invokes an isolated scanner install
+  by absolute path and includes new packages when enforcing the gate.
 - `review` emits Markdown or JSON with the chosen predecessor, changes,
   source evidence, coverage and stable review IDs. It includes informational
   changes and can write a report even when the gate fails.
