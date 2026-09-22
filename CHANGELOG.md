@@ -6,6 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `review --lockfile package-lock.json` explains dependency origins from npm
+  v2/v3 lockfiles, including nested installs, aliases and workspace links.
+  Unresolved origins remain explicit; review IDs and approval scope are unchanged.
+- `review --format sarif` exports SARIF 2.1.0 with stable rule IDs/fingerprints,
+  lockfile locations, blocking reasons and package source evidence.
+- A composite GitHub Action scans installed dependencies, preserves review
+  against the PR target baseline, publishes Markdown/JSON/SARIF, then enforces
+  the proposed baseline. Code Scanning upload is optional; artifact reports
+  do not require Code Scanning eligibility.
+
 - An offline npm integration test installs the packed CLI and dependency
   upgrades, then verifies committed-baseline review, selective approval,
   new-package gating and rejection of interrupted scans. The existing CI

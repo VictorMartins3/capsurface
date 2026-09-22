@@ -29,6 +29,9 @@ Where to change what:
 | Change what fails the build vs. what is only reported | `lib/diff.js` |
 | Match an installation to its approved predecessor | `lib/comparison.js` |
 | Explain changes or apply a selective approval | `lib/review.js`, `lib/approval.js` |
+| Explain npm dependency origins | `lib/provenance.js` |
+| Export review results to SARIF | `lib/sarif.js` |
+| Run the GitHub review Action | `action.yml`, `bin/action-review.js` |
 | Read and publish scan inventories | `lib/snapshot.js` |
 | Change how packages are found on disk | `lib/discovery.js` |
 | Change CLI flags, output, exit codes | `bin/capsurface.js` |

@@ -77,11 +77,13 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   scan('scan-tree', 'node_modules', '--out', 'manifests');
   const target = path.join(tmp, 'target-baseline.json');
   fs.writeFileSync(target, git('show', `${baseSha}:capsurface.lock.json`));
-  const reviewArgs = ['review', 'manifests', '--baseline', target, '--fail-on-new', '--json'];
+  const reviewArgs = ['review', 'manifests', '--baseline', target, '--fail-on-new', '--json', '--lockfile', 'package-lock.json'];
   const before = JSON.parse(gate(reviewArgs, 1));
   assert.equal(before.entries.length, 2);
   const changed = before.entries.find((entry) => entry.name === 'integration-dep');
   assert.ok(changed.escalated);
+  assert.equal(changed.provenance.status, 'resolved');
+  assert.deepEqual(changed.provenance.chain.map((p) => p.name), ['integration-project', 'integration-dep']);
   assert.ok(changed.evidence.some((e) => e.file === 'index.js'));
   scan('review', 'manifests', '--baseline', target, '--fail-on-new', '--report-only', '--out', 'review.md');
   assert.match(fs.readFileSync(path.join(project, 'review.md'), 'utf8'), /Review ID:/);
@@ -96,6 +98,22 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   gate(check, 0);
   const after = JSON.parse(gate(reviewArgs, 1));
   assert.deepEqual(after, before, 'proposed approvals must not hide changes from the target-branch review');
+  const actionOutput = path.join(tmp, 'action-output');
+  const summary = path.join(tmp, 'summary.md');
+  const action = spawnSync(process.execPath, [path.join(tool, 'node_modules', 'capsurface', 'bin', 'action-review.js')], {
+    cwd: project, encoding: 'utf8', env: { ...env, RUNNER_TEMP: tmp, CAPSURFACE_BASE_REF: baseSha,
+      GITHUB_OUTPUT: actionOutput, GITHUB_STEP_SUMMARY: summary },
+  });
+  assert.equal(action.status, 0, action.stderr);
+  const outputs = Object.fromEntries(fs.readFileSync(actionOutput, 'utf8').trim().split('\n').map((line) => {
+    const split = line.indexOf('='); return [line.slice(0, split), line.slice(split + 1)];
+  }));
+  assert.equal(outputs['would-fail'], 'false');
+  assert.match(fs.readFileSync(summary, 'utf8'), /Proposed baseline check: \*\*PASS/);
+  assert.match(fs.readFileSync(summary, 'utf8'), /The capability check would fail/);
+  const sarif = JSON.parse(fs.readFileSync(outputs.sarif));
+  assert.equal(sarif.runs[0].results.length, 2);
+  assert.equal(sarif.runs[0].results[0].locations[0].physicalLocation.artifactLocation.uri, 'package-lock.json');
   const inventory = path.join(project, 'manifests', '.capsurface-snapshot');
   assert.equal(JSON.parse(fs.readFileSync(inventory)).complete, true);
   fs.writeFileSync(inventory, JSON.stringify({ schemaVersion: 1, complete: false }));

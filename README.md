@@ -234,6 +234,19 @@ capsurface approve .capsurface/manifests --baseline capsurface.lock.json \
 
 Approval updates only that installation and records the reason in the
 baseline. A changed scan or candidate baseline invalidates its review ID.
+For dependency origins and GitHub Code Scanning output:
+
+```bash
+capsurface review .capsurface/manifests --baseline capsurface.lock.json \
+  --lockfile package-lock.json --format sarif --out review.sarif
+```
+
+The bundled [GitHub Action](action.yml) publishes Markdown, JSON and SARIF
+before enforcing the proposed baseline. It keeps changes visible against the
+PR target even when the PR also updates approvals. See the
+[adoption workflow](examples/workflows/capsurface.yml) and
+[origin/SARIF documentation](docs/REVIEW.md#dependency-origin-and-sarif).
+
 Incomplete scans cannot be approved. See [the review workflow](docs/REVIEW.md)
 for exit codes, multiple versions, and PR summaries against the target branch.
 

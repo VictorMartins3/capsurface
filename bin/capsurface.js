@@ -10,6 +10,8 @@ const { INSTALL_TRIGGERING_SCRIPT_KEYS } = require('../lib/categories');
 const { RULES_VERSION } = require('../lib/rules-version');
 const { compareTrees } = require('../lib/comparison');
 const { buildReview, renderMarkdown, reviewId } = require('../lib/review');
+const { loadProvenance } = require('../lib/provenance');
+const { renderSarif } = require('../lib/sarif');
 const { approve, baselinePackages: loadBaseline } = require('../lib/approval');
 const { beginSnapshot, readManifests } = require('../lib/snapshot');
 
@@ -501,12 +503,18 @@ function cmdCheck(args) {
 
 function cmdReview(args) {
   const { positional, flags } = parseFlags(args);
-  if (!positional[0]) die('usage: capsurface review <manifests-dir> --baseline <file> [--json] [--out <file>] [--fail-on-new] [--report-only]');
+  if (!positional[0]) die('usage: capsurface review <manifests-dir> --baseline <file> [--json | --format markdown|json|sarif] [--lockfile <package-lock.json>] [--project-root <dir>] [--out <file>] [--fail-on-new] [--report-only]');
   const baselineFile = flags.baseline || 'capsurface.lock.json';
-  const { report } = buildReview(loadBaseline(readJson(baselineFile)), loadManifestsFromDir(positional[0]), flags['fail-on-new'] === true);
+  const format = flags.format || (flags.json ? 'json' : 'markdown');
+  if (!['markdown', 'json', 'sarif'].includes(format)) die('--format must be markdown, json or sarif');
+  if (flags.json && format !== 'json') die('--json cannot be combined with another --format');
+  if (flags.lockfile !== undefined && typeof flags.lockfile !== 'string') die('--lockfile requires a filename');
+  if (flags['project-root'] !== undefined && typeof flags['project-root'] !== 'string') die('--project-root requires a directory');
+  const provenance = flags.lockfile ? loadProvenance(flags.lockfile, flags['project-root']) : undefined;
+  const { report } = buildReview(loadBaseline(readJson(baselineFile)), loadManifestsFromDir(positional[0]), flags['fail-on-new'] === true, provenance);
   report.baseline = baselineFile;
   report.reportOnly = flags['report-only'] === true;
-  const text = flags.json ? JSON.stringify(report, null, 2) + '\n' : renderMarkdown(report);
+  const text = format === 'markdown' ? renderMarkdown(report) : JSON.stringify(format === 'sarif' ? renderSarif(report) : report, null, 2) + '\n';
   if (flags.out) {
     fs.mkdirSync(path.dirname(flags.out), { recursive: true });
     fs.writeFileSync(flags.out, text);
@@ -564,7 +572,7 @@ Usage:
   capsurface scan-tree <node_modules-dir> --out <manifests-dir>
   capsurface baseline <manifests-dir> [--out capsurface.lock.json]
   capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only] [--json]
-  capsurface review <manifests-dir> --baseline <file> [--json] [--out <file>] [--fail-on-new] [--report-only]
+  capsurface review <manifests-dir> --baseline <file> [--json | --format markdown|json|sarif] [--lockfile <package-lock.json>] [--project-root <dir>] [--out <file>] [--fail-on-new] [--report-only]
   capsurface approve <manifests-dir> --baseline <file> --id <review-id> --reason <text>
   capsurface diff <baseline-manifest.json> <current-manifest.json>
   capsurface allowlist <manifests-dir> [--format npm|pnpm|json] [--names] [--out <file>]

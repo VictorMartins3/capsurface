@@ -3,13 +3,16 @@ name: capability surface
 on:
   pull_request:
     paths:
-      - 'package.json'
+      - '**/package.json'
       - 'package-lock.json'
       - 'capsurface.lock.json'
       - '.github/workflows/capsurface.yml'
 
 permissions:
   contents: read
+  # If upload-sarif is enabled below, also grant:
+  # security-events: write
+  # actions: read
 
 jobs:
   capability-check:
@@ -18,70 +21,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      # Even a previously allowed package may ship a compromised update.
-      # Inspect the new contents before allowing any install script to run.
       - name: Install without running lifecycle scripts
         run: npm ci --ignore-scripts
-
-      # Install the scanner outside the project so a dependency-provided bin
-      # cannot shadow it. Choose a published version with review/approve support.
-      - name: Install the pinned scanner
-        working-directory: ${{ runner.temp }}
-        run: npm install --prefix "$RUNNER_TEMP/capsurface-tool" --ignore-scripts --no-audit --no-fund --package-lock=false --save-exact capsurface@0.1.0
-
-      # Pin the version. The ruleset decides what a baseline means, and
-      # capsurface warns when the two disagree; floating this turns that
-      # warning into noise on unrelated pull requests.
-      - name: Scan the installed tree
-        run: node "$RUNNER_TEMP/capsurface-tool/node_modules/capsurface/bin/capsurface.js" scan-tree node_modules --out .capsurface/manifests
-
-      # A proposed baseline update must not hide the changes it approves.
-      - name: Read the target branch baseline
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: git show "$BASE_SHA:capsurface.lock.json" > "$RUNNER_TEMP/capsurface-base.json"
-
-      - name: Summarize changes against the target branch
-        run: |
-          node "$RUNNER_TEMP/capsurface-tool/node_modules/capsurface/bin/capsurface.js" review .capsurface/manifests --baseline "$RUNNER_TEMP/capsurface-base.json" --fail-on-new --report-only --out .capsurface/review.md
-          cat .capsurface/review.md >> "$GITHUB_STEP_SUMMARY"
-
-      # Drop --report-only once the findings look like ones you want to
-      # block on. Until then this runs, reports, and exits 0.
-      - name: Check against the approved baseline
-        run: node "$RUNNER_TEMP/capsurface-tool/node_modules/capsurface/bin/capsurface.js" check .capsurface/manifests --baseline capsurface.lock.json --fail-on-new --report-only
-
-      # The manifests say which file and line produced each finding, which
-      # is what a reviewer needs and what the job log truncates.
-      - name: Upload manifests
-        if: always()
-        uses: actions/upload-artifact@v4
+      # Pin the Action to a reviewed commit, including its scanner. No npm
+      # publication is needed and project-local binaries cannot shadow it.
+      - uses: VictorMartins3/capsurface@REPLACE_WITH_REVIEWED_COMMIT_SHA
         with:
-          name: capsurface-manifests
-          path: |
-            .capsurface/manifests
-            .capsurface/review.md
-          include-hidden-files: true
-          retention-days: 14
+          fail-on-new: 'true'
+          # Start in observation mode; set false to enforce approvals.
+          # Invalid/incomplete scans fail in either mode.
+          report-only: 'true'
+          # Enable only when Code Scanning is available in the repository
+          # and security-events: write / actions: read are granted above.
+          upload-sarif: 'false'
 
-# A failure here means a dependency can do something it could not do when
-# the baseline was approved: a new lifecycle script, new network, process
-# execution, credential or filesystem access, a new literal endpoint, or a
-# file the scanner can no longer read.
-#
-# Look at the named package and version before merging. If the change is
-# legitimate, approve the reviewed installation locally and commit the
-# baseline change in the same pull request:
-#
-#     npx capsurface@0.1.0 scan-tree node_modules --out .capsurface/manifests
-#     npx capsurface@0.1.0 review .capsurface/manifests --baseline capsurface.lock.json
-#     npx capsurface@0.1.0 approve .capsurface/manifests --baseline capsurface.lock.json --id <review-id> --reason "Reviewed the new capability"
-#
-# Renovate and Dependabot open one pull request per upgrade, which is what
-# makes this readable: the diff of capsurface.lock.json sits next to the
-# dependency change that produced it.
+# Before adoption, commit an initial capsurface.lock.json on the target branch.
+# The Action reads that baseline from the PR base SHA for Markdown/JSON/SARIF,
+# then checks the proposed baseline separately. The job summary and artifact
+# remain available when the capability gate fails. No PR comment is posted.
