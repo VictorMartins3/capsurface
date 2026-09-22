@@ -7,6 +7,11 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- Deep scans distinguish shell execution, direct process launches and unresolved
+  launch modes in `child_process` calls. New detail requires review even when
+  general process execution is already approved, with original call-site
+  evidence in Markdown and SARIF.
+
 - Optional TypeScript, declaration-file, JSX and TSX analysis through pinned
   acorn-typescript 1.4.13, with erased type syntax, typed aliases, scope handling
   and explicit unsupported runtime constructs. Missing typed-parser support

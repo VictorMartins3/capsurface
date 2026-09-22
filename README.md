@@ -252,6 +252,11 @@ capsurface approve .capsurface/manifests --baseline capsurface.lock.json \
 Approval updates only that installation and records the reason in the
 baseline. A changed scan or candidate baseline invalidates its review ID.
 
+Deep scans distinguish shell execution, direct process launches and unresolved
+launch modes, with call-site evidence and selective approval. See
+[process launch modes](docs/REVIEW.md#process-launch-modes) for supported forms
+and limitations.
+
 Filesystem access now includes `filesystemRead`, `filesystemWrite` and
 `filesystemRemove` detail. An update that adds removal can fail the gate even
 when general filesystem access was already approved. See
