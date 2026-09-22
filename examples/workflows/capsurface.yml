@@ -28,7 +28,7 @@ jobs:
         run: npm ci --ignore-scripts
       # Pin the Action to a reviewed commit, including its scanner. No npm
       # publication is needed and project-local binaries cannot shadow it.
-      - uses: VictorMartins3/capsurface@afde9bdf89b8f681b6c6bd7ce70b6d730b8ec284
+      - uses: VictorMartins3/capsurface@9c8f3b1fcab9f459dc491202daa293f7e142f18f
         with:
           fail-on-new: 'true'
           # Start in observation mode; set false to enforce approvals.

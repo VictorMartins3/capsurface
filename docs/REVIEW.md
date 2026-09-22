@@ -139,8 +139,51 @@ does not prove safety, and incomplete source coverage is explicitly shown.
 Correlation uses the existing source-text rules, including literal folding
 and their detection limits. Lifecycle command strings are excluded from file
 correlation; a `postinstall` network command is not attributed to an unrelated
-source file that reads credentials. Tracing scripts to their imported files
-requires separate execution-path analysis and is not implemented here.
+source file that reads credentials. Potential import paths from supported
+installation commands are described separately below.
+
+## Installation script paths
+
+Manifest schema v8 adds `installContext`, an explanatory graph of literal
+import references from `preinstall`, `install` and `postinstall`. It runs only
+for packages with non-inert installation commands. It never executes a script
+or loads package code. `prepare` is not treated as a registry-install entry.
+
+The first version accepts direct commands such as `node install.js` and
+`node "scripts/install file.js"`. Shell combinations, environment assignments,
+Node flags, script arguments, inline code and native build commands are
+reported as `unsupported-command`, including npm's implicit node-gyp build.
+
+For recognized entries, the scanner follows literal `require`, simple
+single-line ESM imports/re-exports and literal `import()` references within
+the package. CommonJS file lookup checks the exact filename, then `.js`,
+`.json` and `.node`; only files included in source analysis become graph
+nodes. ESM references use exact filenames, consistent with Node's
+[extension requirement](https://nodejs.org/api/esm.html#mandatory-file-extensions).
+This is a subset of [Node's module resolution](https://nodejs.org/api/modules.html#all-together):
+directory resolution, package exports and aliases are not implemented.
+
+Each hook reports its entry status, reached file count and sampled paths to
+network or credential indicators, including indicators in separate files.
+Unresolved observed references include reasons such as `external-module`,
+`nonliteral-import`, `unscanned-file` and `symlink-reference`. No dependency
+outside the package or internal symlink is followed. Built-in modules are
+recognized using the Node runtime running the scanner.
+
+The graph is bounded to 10,000 files and 100,000 references per package, with
+a maximum path length of 32 files. It retains 20 indicator paths and 20
+unresolved references per hook, with omitted counts; text reports show five
+indicator paths. `truncated` reports graph budget exhaustion.
+`sourceCoverageComplete` describes source scanning only, not completeness of
+module resolution. Older manifests omit this context.
+
+These are **syntactic, potential paths**, not a call graph or proof of runtime
+execution. Conditions, function calls, shadowed loaders, aliases,
+`createRequire`, escaped specifiers and template interpolation are not
+resolved. Unrecognized syntax can leave references unreported, so zero
+unresolved references does not establish a complete graph. Reaching network
+and credential indicators does not demonstrate that credentials flow to the
+network. Risk scores and blocking rules are unchanged.
 
 ## Filesystem operations
 
