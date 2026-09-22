@@ -272,7 +272,7 @@ also feed file correlation and installation-path context. Unknown specifiers
 on recognized loaders contribute `unresolvedRequire`; they do not become an
 invented capability. This pass also attributes [process launch modes](#process-launch-modes).
 It does not yet attribute filesystem operations,
-aliased `fetch`, environment enumeration or data flow, and does not remove
+data flow, and does not remove
 false positives from the source-text scanner.
 
 `analysisProfile` is `source-v1` for basic scans and `source-ast-v1` for deep
@@ -311,6 +311,42 @@ Deep coverage errors still fail the Action with `report-only: 'true'`; completed
 reports remain available through its outputs and job summary. Turning deep mode
 off cannot satisfy a previously deep baseline. Keep the Action pinned to a
 reviewed commit, as in the example workflow.
+
+## Environment and network operations
+
+Deep scans record `envEnumeration` when supported code enumerates or copies
+`process.env`: `Object.keys`, `values`, `entries`, `getOwnPropertyNames`, source
+arguments of `Object.assign`, object spread/rest and `for...in`. Immutable aliases
+and imports from `node:process` are resolved; shadowed `process` and `Object`
+are excluded. Individual environment reads remain nonblocking, while newly
+observed bulk access requires review. Enumeration is not proof of secret access
+or exfiltration, and passing the environment to an unknown helper is not modeled.
+
+Network call detail distinguishes these APIs:
+
+| Capability | Supported operations |
+| --- | --- |
+| `networkRequest` | HTTP/HTTPS `request` and `get`, unshadowed global `fetch` and immutable aliases |
+| `networkConnect` | `net.connect`/`createConnection`, `tls.connect`, `http2.connect` |
+| `networkServer` | HTTP/HTTPS/HTTP2/net/TLS server creation |
+| `networkDns` | Built-in DNS lookup, resolve and reverse APIs, including `dns/promises` |
+| `networkSocket` | `dgram.createSocket` |
+
+These describe the selected [Node network APIs](https://nodejs.org/api/net.html)
+and [HTTP APIs](https://nodejs.org/api/http.html). A connection may use local IPC;
+creating a server or UDP socket does not prove that it listens, sends or receives.
+Instance methods, third-party clients, dynamic member names and wrappers remain
+outside this operation pass. It does not classify HTTP verbs, destinations,
+payloads, TLS configuration or actual runtime reachability.
+
+New detail gates independently of the existing `network` or `env` capability,
+without duplicating its risk score. Newly recognized global fetch or environment
+access also records the parent capability. Review, SARIF, selective approvals
+and engine-migration handling use the same evidence. These details require
+`--deep` (or the Action's `deep` input); basic rules remain unchanged.
+Recognized namespace mutation or escape to unmodeled helpers can make deep
+coverage unavailable. Global monkey-patching outside the supported patterns
+and data flow between functions are not resolved.
 
 ## Process launch modes
 

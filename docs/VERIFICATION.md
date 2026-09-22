@@ -29,6 +29,35 @@ and URI containment. Generated SARIF has also been validated against the
 repository with the feature enabled; artifact validation alone does not test
 that integration.
 
+### Environment and network detail
+
+Compared `2ed4a4a` with engine `57763e87d756` on 5,853 physical installations
+across the same four production trees, with Node 26.8.1 and the pinned parsers.
+Existing basic capability/evidence records, risk scores and flags were unchanged;
+discovery, basic coverage and content hashing completed without errors.
+
+In deep mode, 254 installations changed capability presence. New detail included
+112 HTTP-request, 58 connection, 43 server-creation, 17 DNS, 4 UDP-socket and
+91 environment-enumeration installations; these groups overlap. Resolving
+previously missed global fetch calls and bulk environment access also added
+25 parent network capabilities and 14 parent environment capabilities.
+
+Unavailable AST files increased from 29,858 to 30,179 of 214,131 files, and
+incomplete installations from 1,776 to 1,847. These 71 additional failures expose
+recognized namespace mutation or escape to unmodeled helpers. Five direct-launch,
+two shell-launch and two unresolved-launch presence records disappeared in
+installations whose deep coverage is now incomplete; the gate still blocks those
+installations. Deep risk records changed in 110 installations, including the
+new parent capabilities and coverage failures. New operation detail itself has
+zero additional severity.
+
+All 334 default tests, 42 deep tests, offline integration and the demo passed.
+Regressions cover shadowing, immutable aliases, environment copies versus writes,
+DNS promises, original evidence, source correlation, operation-level gating,
+selective approvals and engine migration. The corpus contains repeated installs
+and the existing synthetic compromise; these numbers do not establish malware
+precision or a performance improvement. No dependency scripts were executed.
+
 ### Deep review Action
 
 The local Action-wrapper regression starts from a reviewed deep baseline,

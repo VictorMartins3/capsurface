@@ -7,6 +7,10 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- Deep-mode environment enumeration and network operation detail, with
+  call-site evidence and review of newly observed operations even when the
+  parent capability was already approved.
+
 - Opt-in `deep` analysis in the review Action, with pinned parser setup and
   explicit coverage failures, including in report-only mode.
 

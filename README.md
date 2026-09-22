@@ -255,6 +255,10 @@ capsurface approve .capsurface/manifests --baseline capsurface.lock.json \
 Approval updates only that installation and records the reason in the
 baseline. A changed scan or candidate baseline invalidates its review ID.
 
+Deep scans also distinguish environment enumeration and HTTP requests,
+connections, server creation, DNS queries and UDP socket creation. See
+[environment and network operations](docs/REVIEW.md#environment-and-network-operations).
+
 Deep scans distinguish shell execution, direct process launches and unresolved
 launch modes, with call-site evidence and selective approval. See
 [process launch modes](docs/REVIEW.md#process-launch-modes) for supported forms
