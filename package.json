@@ -31,7 +31,14 @@
     "lib",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "docs/REVIEW.md",
+    "docs/VERIFICATION.md",
+    "docs/RELEASING.md",
+    "action.yml",
+    "examples/workflows/capsurface.yml"
   ],
   "engines": {
     "node": ">=14"

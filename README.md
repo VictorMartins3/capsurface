@@ -1,7 +1,6 @@
 # capsurface
 
 [![ci](https://github.com/VictorMartins3/capsurface/actions/workflows/ci.yml/badge.svg)](https://github.com/VictorMartins3/capsurface/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/capsurface.svg)](https://www.npmjs.com/package/capsurface)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A capability-aware supply-chain scanner for npm packages. It statically
@@ -12,13 +11,20 @@ versions in CI, before a compromised release gets merged.
 
 ![capsurface catching a tampered dependency escalate its capabilities and fail the check in CI](https://raw.githubusercontent.com/VictorMartins3/capsurface/main/docs/demo.gif)
 
+## Status
+
+Preparing the first public release. The package is not yet published to npm;
+use a reviewed source checkout as described below. Experimental AST analysis
+has explicit coverage limits. This is a review aid, not a malware-free guarantee.
+
 ## Quick start
 
-No mandatory dependencies, no build step.
+No mandatory dependencies, no build step. First [install from source](#install),
+then run these commands in the project you want to review.
 
 ```bash
 npm ci --ignore-scripts
-npx capsurface scan-tree node_modules --out .capsurface/manifests
+capsurface scan-tree node_modules --out .capsurface/manifests
 ```
 
 ```
@@ -37,13 +43,13 @@ Runs code at install time: 5 of 666
 Approve that surface once, commit it, and let CI fail when it grows:
 
 ```bash
-npx capsurface baseline .capsurface/manifests --out capsurface.lock.json
+capsurface baseline .capsurface/manifests --out capsurface.lock.json
 git add capsurface.lock.json
 
 # in CI, before running dependency scripts or application code
 npm ci --ignore-scripts
-npx capsurface scan-tree node_modules --out .capsurface/manifests
-npx capsurface check .capsurface/manifests --baseline capsurface.lock.json
+capsurface scan-tree node_modules --out .capsurface/manifests
+capsurface check .capsurface/manifests --baseline capsurface.lock.json
 ```
 
 Keep install scripts disabled until the scan and review finish, including
@@ -128,10 +134,19 @@ purpose, since that is exactly where flatmap-stream hid.
 
 No mandatory dependencies, no build step, just Node.js >= 14.
 
+From a reviewed checkout, install the CLI outside the project being scanned:
+
 ```bash
-chmod +x bin/capsurface.js
-./bin/capsurface.js --help
+npm install --global --ignore-scripts /absolute/path/to/capsurface
+capsurface --help
 ```
+
+You can also run `node /absolute/path/to/capsurface/bin/capsurface.js` directly,
+without installation. Use that explicit path in CI or npm scripts, where a
+project-local executable could otherwise shadow the trusted scanner. The
+[GitHub Action](action.yml) runs its own trusted checkout.
+
+Release maintainers: see [Preparing a release](docs/RELEASING.md).
 
 Run the test suite (needs Node >= 18 for the built-in `node:test` runner;
 this is dev-only, the shipped CLI still needs only Node >= 14):
@@ -377,10 +392,9 @@ supplements module acquisition. Neither mode is a sound analysis.
   at all, so it is not scannable as-is; set `nodeLinker: node-modules` in
   `.yarnrc.yml`, or use npm, pnpm, or classic Yarn. The other three layouts
   are verified against real installs, see [docs/VERIFICATION.md](docs/VERIFICATION.md).
-- Scope is npm's install-time surface only: package.json scripts and the
-  source of installed dependencies. No visibility into editor or IDE
-  auto-execution hooks, which is the second vector the keyv/cacheable
-  attack used and out of scope for a `node_modules` scan by design.
+- Scope is dependency source and package.json scripts, including runtime code
+  and published tarballs supplied to `scan-lock`. The scanner does not model
+  editor or IDE auto-execution hooks, nor prove that detected code executes.
 
 ## How it compares
 
