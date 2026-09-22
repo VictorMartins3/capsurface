@@ -90,6 +90,29 @@ missing digests, symlinks and the content byte budget. The corpus comparison
 used Node 26.8.1 with old scans first; it is not a controlled speed benchmark
 or a claim that every published package supports content approval.
 
+### File correlation comparison
+
+Compared `2c4a201` with file-level context on the same 5,853 installed packages.
+The scanner recorded co-occurrence in 22 files across 15 installations.
+Existing capability records, risk scores and flags were unchanged; discovery,
+source coverage and content hashing completed without errors. The local
+uptime-kuma tree retains the synthetic `abort-controller` modification described
+below, which accounts for one of these installations. This is not a clean
+registry sample or a malware-detection precision measurement.
+
+Observed examples include Prisma's npm configuration handling, Resend's API
+client and Documenso's CAPTCHA verification. The existing credential-name
+heuristic also matches `MCP_AUTH_PORT` in an SDK example, although it is a
+server port. Bundles can place related-looking indicators thousands of lines
+apart. These findings explain why context is informational and why neither
+co-occurrence nor the absence of a match establishes data flow or safety.
+
+Regressions cover matching after evidence quotas fill, multiline imports,
+separate files, bounded samples, incomplete coverage and report escaping.
+A URL literal alone does not establish network capability. Tests also retain
+the existing package-level gates and risk scores. Measurements used Node
+26.8.1; no performance or false-positive-rate claim is made from this run.
+
 ### Dependency review coverage
 
 Regression tests cover installation matching, physical duplicates, Windows

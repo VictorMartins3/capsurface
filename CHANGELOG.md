@@ -7,6 +7,8 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- File-level correlation of network and credential indicators, with original
+  locations and coverage limits in Markdown, JSON and SARIF reviews.
 - Selective approvals bind installed file content and version, with optional
   UTC expiration through `approve --expires`. Changed content and expired
   approvals require a new review even when capabilities are unchanged.
@@ -29,6 +31,8 @@ Notable user-facing changes are recorded here using
 
 ### Changed
 
+- Manifest schema v7 adds explanatory source context without changing risk
+  scores or capability gates. Older manifests remain readable.
 - Manifest schema v6 includes installed-content integrity. New selective
   approvals require a complete digest; older baselines remain readable.
 - Dependency approvals are matched by installation and version. Ambiguous

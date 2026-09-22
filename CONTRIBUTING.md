@@ -30,6 +30,7 @@ Where to change what:
 | Change what fails the build vs. what is only reported | `lib/diff.js` |
 | Match an installation to its approved predecessor | `lib/comparison.js` |
 | Explain changes or apply a selective approval | `lib/review.js`, `lib/approval.js` |
+| Collect and explain file-level capability relationships | `lib/source-context.js`, `lib/scanner.js` |
 | Hash installed content or enforce approval expiry | `lib/content-integrity.js`, `lib/approval-policy.js` |
 | Explain npm dependency origins | `lib/provenance.js` |
 | Export review results to SARIF | `lib/sarif.js` |
@@ -40,7 +41,7 @@ Where to change what:
 
 `lib/rules-version.js` hashes the detection rules and the scanner,
 normalizer, discovery, diff, comparison, filesystem-operation, content-integrity
-and approval-policy implementations (with line endings normalized).
+approval-policy and source-context implementations (with line endings normalized).
 Changing these changes that hash, and `check` warns that existing
 baselines were written by different rules. That is intentional: edit the engine and
 every committed baseline means something slightly different, which a security

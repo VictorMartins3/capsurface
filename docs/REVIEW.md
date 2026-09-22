@@ -113,6 +113,35 @@ Old schema-v1 baselines are readable. Approval writes schema v2 and retains
 the unselected entries. A rules migration is shown in review and should be
 assessed separately from an actual package capability change.
 
+## File correlation
+
+Manifest schema v7 adds `sourceContext`. It records source files where a
+network capability indicator occurs alongside a sensitive-target indicator
+or a credential-shaped environment variable. Markdown and SARIF show the
+file and the original line of each indicator; JSON retains structured data.
+
+The scanner collects the first relevant indicators while analyzing each
+file, independently of package-wide evidence quotas. A file can therefore
+appear in this context even when it is absent from the category's five
+evidence samples. `matchingFiles` counts all matching files; `matches` retains
+up to 20, with the remainder in `omittedFiles`. Human-readable reports show
+up to five file pairs. `filesAnalyzed` and `complete` describe source coverage,
+not the number of retained samples. Older manifests without this field show
+correlation as unavailable and can be rescanned to collect it.
+
+This is explanatory context, not another blocking rule. Existing capability
+gates, scores and risk flags are unchanged. Co-occurrence does not establish
+execution order, a shared call path or transfer of credential data. Two
+indicators may belong to unrelated functions in the same file, especially in
+bundles. Conversely, code may pass data between different files. A zero count
+does not prove safety, and incomplete source coverage is explicitly shown.
+
+Correlation uses the existing source-text rules, including literal folding
+and their detection limits. Lifecycle command strings are excluded from file
+correlation; a `postinstall` network command is not attributed to an unrelated
+source file that reads credentials. Tracing scripts to their imported files
+requires separate execution-path analysis and is not implemented here.
+
 ## Filesystem operations
 
 Manifest schema v5 supplements the existing `filesystem` capability with:
