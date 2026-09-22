@@ -1,0 +1,65 @@
+name: stage npm release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          package-manager-cache: false
+      - name: Validate the release tag and source
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          git merge-base --is-ancestor HEAD origin/main
+          node <<'JS'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          if (pkg.name !== 'capsurface' || !/^\d+\.\d+\.\d+$/.test(pkg.version) || process.env.RELEASE_TAG !== `v${pkg.version}`) {
+            throw new Error('Release tag must match a stable capsurface version in package.json');
+          }
+          JS
+      - run: npm test
+      - run: npm run test:integration
+      - run: npm run demo
+      - name: Install optional parsers with lifecycle scripts disabled
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0 acorn-typescript@1.4.13
+      - run: npm run test:deep
+
+  publish:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 26
+          package-manager-cache: false
+      # No dependency install, build, cache or downloaded artifact in this job.
+      # npm must authorize only staging for this exact workflow via OIDC.
+      # A maintainer approves the staged tarball on npm with 2FA.
+      - name: Stage the source package for manual approval
+        run: npm stage publish --ignore-scripts --access public --provenance
