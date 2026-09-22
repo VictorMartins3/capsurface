@@ -52,9 +52,45 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   npm(['install', '--prefix', tool, '--ignore-scripts', '--package-lock=false', scannerTar], tmp);
   const cli = path.join(tool, 'node_modules', 'capsurface', 'bin', 'capsurface.js');
   assert.ok(fs.existsSync(cli));
+  const installed = path.dirname(path.dirname(cli));
+  const requiredDocs = ['README.md', 'LICENSE', 'CHANGELOG.md', 'CONTRIBUTING.md',
+    'SECURITY.md', 'docs/REVIEW.md', 'docs/VERIFICATION.md', 'docs/RELEASING.md',
+    'action.yml', 'examples/workflows/capsurface.yml'];
+  for (const file of requiredDocs) {
+    assert.ok(fs.existsSync(path.join(installed, file)), `packed package must include ${file}`);
+  }
+  const expected = new Set(['package.json', ...requiredDocs]);
+  const source = path.join(__dirname, '..');
+  for (const dir of ['bin', 'lib']) {
+    for (const file of fs.readdirSync(path.join(source, dir))) expected.add(`${dir}/${file}`);
+  }
+  function files(dir, prefix = '') {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+      const relative = prefix + entry.name;
+      return entry.isDirectory() ? files(path.join(dir, entry.name), relative + '/') : [relative];
+    });
+  }
+  assert.deepEqual(files(installed).sort(), [...expected].sort(),
+    'ship runtime sources and documentation, without tests, caches or generated reports');
+  assert.equal(require(path.join(installed, 'lib/rules-version')).RULES_VERSION,
+    require('../lib/rules-version').RULES_VERSION, 'packing must preserve the engine fingerprint');
+  assert.equal(fs.existsSync(path.join(tool, 'node_modules', 'acorn')), false,
+    'the default installation must not require optional parsers');
   const project = writePackage(tmp, 'project', { name: 'integration-project', version: '1.0.0', private: true });
   const scan = (...args) => run(process.execPath, [cli, ...args], project);
   const gate = (args, status) => run(process.execPath, [cli, ...args], project, status);
+  const archiveUrl = 'https://registry.example/integration-dep-1.0.0.tgz';
+  const archiveIntegrity = 'sha512-' + require('crypto').createHash('sha512')
+    .update(fs.readFileSync(oldTar)).digest('base64');
+  fs.writeFileSync(path.join(project, 'archive-map.json'), JSON.stringify({ [archiveUrl]: oldTar }));
+  fs.writeFileSync(path.join(project, 'archive-lock.json'), JSON.stringify({ lockfileVersion: 3,
+    packages: { '': {}, 'node_modules/integration-dep': {
+      version: '1.0.0', resolved: archiveUrl, integrity: archiveIntegrity,
+    } } }));
+  scan('scan-lock', 'archive-lock.json', '--tarballs', 'archive-map.json', '--out', 'archive-manifests');
+  scan('baseline', 'archive-manifests', '--out', 'archive-baseline.json');
+  gate(['check', 'archive-manifests', '--baseline', 'archive-baseline.json'], 0);
+  assert.equal(fs.existsSync(marker), false, 'packed archive scanning must not execute install hooks');
   const git = (...args) => run('git', args, project);
   npm(['install', '--ignore-scripts', '--save-exact', oldTar], project);
   npm(['ci', '--ignore-scripts'], project);

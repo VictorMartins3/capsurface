@@ -160,6 +160,8 @@ checked in CI. Keep author attribution accurate.
 
 ## Release notes and generated files
 
+Follow [Preparing a release](docs/RELEASING.md) when cutting a version.
+
 Update `CHANGELOG.md` for changes users need to know about, under `Unreleased`.
 Describe the final behavior and migration, not the sequence of implementation
 steps. Internal refactors and test-only changes usually need no release note.

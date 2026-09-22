@@ -87,6 +87,10 @@ Notable user-facing changes are recorded here using
 
 ### Fixed
 
+- The npm package includes its linked usage, verification, contribution and
+  security documentation. Pre-release setup uses a reviewed source checkout
+  instead of an unpublished registry package.
+
 - Incomplete reads and exhausted analysis budgets can no longer silently pass
   comparison or be accepted into a baseline.
 - Endpoint and environment-variable collection no longer silently stops at
