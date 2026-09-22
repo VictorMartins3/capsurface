@@ -85,7 +85,8 @@ individual account, so organization-wide 2FA policy does not apply.
 Protect release tags in the repository rulesets: restrict creation, updates
 and deletion to repository admins. Review changes to release workflows as
 carefully as changes to shipped source. Keep third-party Actions pinned to
-full commit SHAs; Dependabot proposes updates for review.
+full commit SHAs; Dependabot proposes updates for review with a seven-day
+cooldown for routine version updates.
 
 The project `.npmrc` disables lifecycle scripts and sets a three-day release
 age filter. The age filter requires a recent npm version; older npm versions
