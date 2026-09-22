@@ -1,0 +1,46 @@
+name: capability surface
+
+on:
+  pull_request:
+    paths:
+      - '**/package.json'
+      - 'package-lock.json'
+      - 'capsurface.lock.json'
+      - '.github/workflows/capsurface.yml'
+
+permissions:
+  contents: read
+  # If upload-sarif is enabled below, also grant:
+  # security-events: write
+  # actions: read
+
+jobs:
+  capability-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install without running lifecycle scripts
+        run: npm ci --ignore-scripts
+      # Pin the Action to a reviewed commit, including its scanner. No npm
+      # publication is needed and project-local binaries cannot shadow it.
+      - uses: VictorMartins3/capsurface@954bfd21357047ea89a6b67b28623ab99e343737
+        with:
+          fail-on-new: 'true'
+          # Start in observation mode; set false to enforce approvals.
+          # Invalid/incomplete scans fail in either mode.
+          report-only: 'true'
+          # Enable only when Code Scanning is available in the repository
+          # and security-events: write / actions: read are granted above.
+          upload-sarif: 'false'
+          # Optional downloadable reports; retention is 14 days.
+          upload-artifact: 'false'
+
+# Before adoption, commit an initial capsurface.lock.json on the target branch.
+# The Action reads that baseline from the PR base SHA for Markdown/JSON/SARIF,
+# then checks the proposed baseline separately. The job summary remains
+# available when the capability gate fails. Artifact upload is optional. No PR comment is posted.

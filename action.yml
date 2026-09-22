@@ -1,0 +1,89 @@
+name: Capsurface dependency review
+description: Review installed dependency capabilities against the PR target and proposed baselines.
+inputs:
+  project-directory:
+    description: Project directory containing node_modules and the npm lockfile.
+    default: .
+  baseline:
+    description: Proposed baseline path relative to the project directory.
+    default: capsurface.lock.json
+  base-ref:
+    description: Target commit SHA containing the reviewed baseline. Empty compares with the proposed baseline.
+    default: ${{ github.event.pull_request.base.sha }}
+  lockfile:
+    description: npm v2/v3 lockfile path relative to the project directory.
+    default: package-lock.json
+  fail-on-new:
+    description: Require approval for newly installed packages.
+    default: 'true'
+  report-only:
+    description: Report capability changes without failing the gate. Invalid scans still fail.
+    default: 'false'
+  upload-sarif:
+    description: Upload to GitHub Code Scanning when supported and enabled. Requires security-events write.
+    default: 'false'
+  upload-artifact:
+    description: Retain generated reports as a temporary workflow artifact.
+    default: 'false'
+  artifact-name:
+    description: Unique artifact name for this review job.
+    default: capsurface-review
+outputs:
+  markdown:
+    description: Absolute path to the Markdown report.
+    value: ${{ steps.review.outputs.markdown }}
+  sarif:
+    description: Absolute path to the SARIF report.
+    value: ${{ steps.review.outputs.sarif }}
+  json:
+    description: Absolute path to the JSON report.
+    value: ${{ steps.review.outputs.json }}
+  would-fail:
+    description: Whether the proposed baseline check would fail.
+    value: ${{ steps.review.outputs.would-fail }}
+runs:
+  using: composite
+  steps:
+    - name: Scan and prepare dependency review
+      id: review
+      shell: bash
+      env:
+        CAPSURFACE_PROJECT: ${{ inputs.project-directory }}
+        CAPSURFACE_BASELINE: ${{ inputs.baseline }}
+        CAPSURFACE_BASE_REF: ${{ inputs.base-ref }}
+        CAPSURFACE_LOCKFILE: ${{ inputs.lockfile }}
+        CAPSURFACE_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
+      run: node "$GITHUB_ACTION_PATH/bin/action-review.js"
+    - name: Retain dependency review
+      if: inputs.upload-artifact == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ steps.review.outputs.directory }}
+        include-hidden-files: true
+        retention-days: 14
+    - name: Upload dependency review to Code Scanning
+      if: inputs.upload-sarif == 'true'
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: ${{ steps.review.outputs.sarif }}
+        category: capsurface/dependency-review
+    - name: Enforce the proposed baseline
+      shell: bash
+      env:
+        CAPSURFACE_INCOMPLETE: ${{ steps.review.outputs.analysis-incomplete }}
+        CAPSURFACE_GATE: ${{ steps.review.outputs.would-fail }}
+        CAPSURFACE_REPORT_ONLY: ${{ inputs.report-only }}
+      run: |
+        if [[ "$CAPSURFACE_INCOMPLETE" == "true" ]]; then
+          echo 'Dependency analysis is incomplete; report-only cannot approve missing coverage.' >&2
+          exit 2
+        fi
+        if [[ "$CAPSURFACE_REPORT_ONLY" != "true" && "$CAPSURFACE_REPORT_ONLY" != "false" ]]; then
+          echo 'report-only must be true or false' >&2
+          exit 2
+        fi
+        if [[ "$CAPSURFACE_GATE" == "true" && "$CAPSURFACE_REPORT_ONLY" != "true" ]]; then
+          echo 'Dependency capabilities exceed the proposed baseline. Read the job summary for blocking reasons.' >&2
+          exit 1
+        fi

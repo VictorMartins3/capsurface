@@ -23,6 +23,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm test
+      - run: npm run test:integration
 
   # The test runner needs Node 18; the shipped CLI claims Node 14. Prove it.
   floor:
@@ -44,3 +45,40 @@ jobs:
             echo "check passed on the compromised fixture, which is a regression"
             exit 1
           fi
+
+  review-action:
+    name: dependency review action
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Prepare a reviewed dependency upgrade
+        id: fixture
+        run: node test/action-fixture.js "$RUNNER_TEMP/review-fixture"
+      - name: Verify the unapproved upgrade is blocked
+        id: blocked
+        continue-on-error: true
+        uses: ./
+        with:
+          project-directory: ${{ runner.temp }}/review-fixture
+          base-ref: ${{ steps.fixture.outputs.base-sha }}
+      - name: Assert the gate and approve the fixture
+        env:
+          OUTCOME: ${{ steps.blocked.outcome }}
+          REVIEW_JSON: ${{ steps.blocked.outputs.json }}
+        run: node test/action-fixture.js "$RUNNER_TEMP/review-fixture" approve
+      - name: Verify the approved gate retains the target-branch review
+        id: approved
+        uses: ./
+        with:
+          project-directory: ${{ runner.temp }}/review-fixture
+          base-ref: ${{ steps.fixture.outputs.base-sha }}
+          upload-artifact: 'true'
+          artifact-name: capsurface-review-after-approval
+      - name: Assert approvals remain visible
+        env:
+          GATE: ${{ steps.approved.outputs.would-fail }}
+          REVIEW_JSON: ${{ steps.approved.outputs.json }}
+        run: node test/action-fixture.js "$RUNNER_TEMP/review-fixture" verify

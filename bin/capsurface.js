@@ -4,10 +4,16 @@
 const fs = require('fs');
 const path = require('path');
 const { scanPackageDir } = require('../lib/scanner');
-const { diffManifests, unionOfManifests } = require('../lib/diff');
+const { diffManifests, isAnalysisIncomplete } = require('../lib/diff');
 const { discoverPackageDirs } = require('../lib/discovery');
 const { INSTALL_TRIGGERING_SCRIPT_KEYS } = require('../lib/categories');
 const { RULES_VERSION } = require('../lib/rules-version');
+const { compareTrees } = require('../lib/comparison');
+const { buildReview, renderMarkdown, reviewId } = require('../lib/review');
+const { loadProvenance } = require('../lib/provenance');
+const { renderSarif } = require('../lib/sarif');
+const { approve, baselinePackages: loadBaseline } = require('../lib/approval');
+const { beginSnapshot, readManifests } = require('../lib/snapshot');
 
 function die(msg) {
   console.error(`capsurface: ${msg}`);
@@ -65,6 +71,7 @@ function cmdScan(args) {
   } else {
     console.log(JSON.stringify(manifest, null, 2));
   }
+  if (isAnalysisIncomplete(manifest)) process.exitCode = 2;
   if (manifest.riskFlags.length) {
     console.error('\nRisk flags:');
     for (const f of manifest.riskFlags) console.error(`  - ${f}`);
@@ -96,68 +103,86 @@ function cmdScanTree(args) {
       die(`--boundary directory not found: ${flags.boundary}`);
     }
   }
-  const { dirs: pkgDirs, skippedEscapes } = discoverPackageDirs(rootDir, discoverOpts);
-  if (skippedEscapes.length) {
-    console.error(`capsurface: WARNING: ${skippedEscapes.length} symlink(s) inside the scan tree point outside the project and were NOT followed:`);
-    for (const s of skippedEscapes) {
-      console.error(`  ${s.path} -> ${s.target}`);
+  const snapshot = beginSnapshot(flags.out);
+  try {
+    const { dirs: pkgDirs, skippedEscapes, errors, errorCount } = discoverPackageDirs(rootDir, discoverOpts);
+    for (const error of errors) {
+      console.error(`capsurface: discovery ${error.operation} failed: ${error.path} (${error.code})`);
     }
-    console.error('  A package legitimately should not need to link outside its project directory; treat this as suspicious.\n');
-  }
-  const manifests = [];
-  const usedFilenames = new Set();
-  for (const dir of pkgDirs) {
-    const manifest = scanPackageDir(dir);
-    manifest.installPath = path.relative(rootDir, dir);
-    manifests.push(manifest);
+    if (skippedEscapes.length) {
+      console.error(`capsurface: WARNING: ${skippedEscapes.length} symlink(s) inside the scan tree point outside the project and were NOT followed:`);
+      for (const s of skippedEscapes) {
+        console.error(`  ${s.path} -> ${s.target}`);
+      }
+      console.error('  A package legitimately should not need to link outside its project directory; treat this as suspicious.\n');
+    }
+    const manifests = [];
+    const usedFilenames = new Set();
+    for (const dir of pkgDirs) {
+      const manifest = scanPackageDir(dir);
+      manifest.installPath = path.relative(rootDir, dir);
+      manifests.push(manifest);
 
-    const base = `${manifest.name.replace('/', '__')}@${manifest.version}`;
-    let filename = `${base}.json`;
-    let n = 2;
-    // Two different physical installs can legitimately share the same
-    // name@version (rare, but possible with vendored/duplicated copies);
-    // disambiguate rather than silently overwriting one manifest with the
-    // other.
-    while (usedFilenames.has(filename)) {
-      filename = `${base}__${n}.json`;
-      n++;
+      const safePart = (value) => String(value).replace(/[\\/<>:"|?*\x00-\x1f]/g, '__');
+      const base = `${safePart(manifest.name)}@${safePart(manifest.version)}`;
+      let filename = `${base}.json`;
+      let n = 2;
+      // Two different physical installs can legitimately share the same
+      // name@version (rare, but possible with vendored/duplicated copies);
+      // disambiguate rather than silently overwriting one manifest with the
+      // other.
+      while (usedFilenames.has(filename.toLowerCase())) {
+        filename = `${base}__${n}.json`;
+        n++;
+      }
+      usedFilenames.add(filename.toLowerCase());
+      snapshot.write(filename, manifest);
     }
-    usedFilenames.add(filename);
-    writeJson(path.join(flags.out, filename), manifest);
-  }
-  // Install-time surface before the risk ranking. The score answers "how
-  // much can this package do"; a reviewer's first question is "what runs on
-  // npm install", a much shorter list and the one that decides blast
-  // radius. bcrypt scores 4 and would sort below twenty packages that
-  // cannot execute during install at all.
-  const installTime = manifests.filter(
-    (m) => m.capabilities.lifecycleScripts && m.capabilities.lifecycleScripts.installTriggering
-  );
-  console.log(`Scanned ${manifests.length} package install(s), including nested, symlinked and pnpm-store locations.\n`);
-  console.log(`Runs code at install time: ${installTime.length} of ${manifests.length}`);
-  if (installTime.length) {
-    for (const m of installTime.sort((a, b) => b.riskScore - a.riskScore)) {
-      console.log(`  ${m.name}@${m.version}  risk=${m.riskScore}`);
-      const scripts = m.capabilities.lifecycleScripts.scripts || {};
-      for (const key of INSTALL_TRIGGERING_SCRIPT_KEYS) {
-        if (scripts[key]) console.log(`      ${key}: ${scripts[key]}`);
+    // Install-time surface before the risk ranking. The score answers "how
+    // much can this package do"; a reviewer's first question is "what runs on
+    // npm install", a much shorter list and the one that decides blast
+    // radius. bcrypt scores 4 and would sort below twenty packages that
+    // cannot execute during install at all.
+    const installTime = manifests.filter(
+      (m) => m.capabilities.lifecycleScripts && m.capabilities.lifecycleScripts.installTriggering
+    );
+    console.log(`Scanned ${manifests.length} package install(s), including nested, symlinked and pnpm-store locations.\n`);
+    console.log(`Runs code at install time: ${installTime.length} of ${manifests.length}`);
+    if (installTime.length) {
+      for (const m of installTime.sort((a, b) => b.riskScore - a.riskScore)) {
+        console.log(`  ${m.name}@${m.version}  risk=${m.riskScore}`);
+        const scripts = m.capabilities.lifecycleScripts.scripts || {};
+        for (const key of INSTALL_TRIGGERING_SCRIPT_KEYS) {
+          if (scripts[key]) console.log(`      ${key}: ${scripts[key]}`);
+        }
       }
     }
-  }
 
-  manifests.sort((a, b) => b.riskScore - a.riskScore);
-  console.log('\nHighest capability surface:\n');
-  for (const m of manifests.slice(0, 20)) {
-    console.log('  ' + summaryLine(m));
-  }
-  console.log(`\nManifests written to ${flags.out}/`);
+    manifests.sort((a, b) => b.riskScore - a.riskScore);
+    console.log('\nHighest capability surface:\n');
+    for (const m of manifests.slice(0, 20)) {
+      console.log('  ' + summaryLine(m));
+    }
+    console.log(`\nManifests written to ${flags.out}/`);
 
-  if (skippedEscapes.length) {
-    // An escape attempt must fail the exit code, not just print a WARNING.
-    // Otherwise a CI pipeline checking only the exit code would treat this
-    // as a clean, passing run.
-    console.error(`capsurface scan-tree FAILED: ${skippedEscapes.length} package symlink(s) tried to escape the project boundary (see WARNING above).`);
-    process.exit(1);
+    if (errorCount) {
+      console.error(`capsurface scan-tree FAILED: ${errorCount} discovery error(s); inventory is incomplete.`);
+      process.exitCode = 2;
+    } else if (skippedEscapes.length) {
+      // An escape attempt must fail the exit code, not just print a WARNING.
+      // Otherwise a CI pipeline checking only the exit code would treat this
+      // as a clean, passing run.
+      console.error(`capsurface scan-tree FAILED: ${skippedEscapes.length} package symlink(s) tried to escape the project boundary (see WARNING above).`);
+      process.exitCode = 1;
+    } else {
+      snapshot.complete();
+      if (manifests.some(isAnalysisIncomplete)) {
+        console.error('capsurface scan-tree FAILED: incomplete package analysis; see manifest coverage.');
+        process.exitCode = 2;
+      }
+    }
+  } finally {
+    snapshot.close();
   }
 }
 
@@ -168,25 +193,9 @@ function cmdScanTree(args) {
  */
 function loadManifestsFromDir(dir) {
   const byName = new Map();
-  for (const file of fs.readdirSync(dir)) {
-    if (!file.endsWith('.json')) continue;
-    const m = readJson(path.join(dir, file));
+  for (const m of readManifests(dir)) {
     if (!byName.has(m.name)) byName.set(m.name, []);
     byName.get(m.name).push(m);
-  }
-  return byName;
-}
-
-/**
- * Load capsurface.lock.json into the Map<name, Manifest[]> shape
- * loadManifestsFromDir uses. Both the current schema and the original
- * one-manifest-per-name schema are accepted, so a lock file committed by an
- * earlier version keeps working without a migration step.
- */
-function loadBaseline(lock) {
-  const byName = new Map();
-  for (const [name, value] of Object.entries(lock.packages || {})) {
-    byName.set(name, Array.isArray(value) ? value : [value]);
   }
   return byName;
 }
@@ -213,6 +222,9 @@ function cmdBaseline(args) {
   const outFile = flags.out || 'capsurface.lock.json';
   const byName = loadManifestsFromDir(manifestsDir);
   const packages = {};
+  if ([...byName.values()].some((manifests) => manifests.some(isAnalysisIncomplete))) {
+    die('cannot approve incomplete analysis; fix the coverage errors and scan again');
+  }
   let manifestCount = 0;
   for (const [name, manifests] of byName) {
     manifests.sort((a, b) => compareVersions(a.version, b.version));
@@ -250,6 +262,7 @@ function installTimeEntries(manifestsDir) {
   let total = 0;
   for (const manifests of byName.values()) {
     for (const m of manifests) {
+      if (isAnalysisIncomplete(m)) die('cannot generate an allowlist from incomplete analysis; scan again after fixing coverage errors');
       total++;
       if (!m.capabilities.lifecycleScripts.installTriggering) continue;
       const id = `${m.name}@${m.version}`;
@@ -380,46 +393,15 @@ function cmdCheck(args) {
     );
   }
 
-  let anyEscalation = false;
-  const newPackages = [];
-  const escalations = [];
-  let totalCurrentManifests = 0;
-  let totalBaselineManifests = 0;
-  for (const manifests of baselineByName.values()) totalBaselineManifests += manifests.length;
-
-  for (const [name, currentManifests] of currentByName) {
-    const baselineManifests = baselineByName.get(name);
-    if (!baselineManifests || baselineManifests.length === 0) {
-      for (const manifest of currentManifests) {
-        totalCurrentManifests++;
-        newPackages.push(manifest);
-      }
-      continue;
-    }
-    // Computed once per package name, not once per installed version of
-    // that name. Diffing several nested/multi-version installs against
-    // the same baseline previously redid this Set-merging work per version.
-    const union = unionOfManifests(baselineManifests);
-    for (const manifest of currentManifests) {
-      totalCurrentManifests++;
-
-      // An approved version is compared against its own approved manifest,
-      // not against the union and not skipped. Skipping it assumed that a
-      // version number pins the content, which is the assumption an attacker
-      // subverts: a postinstall in one package rewriting a sibling's files
-      // never changes a version. Using its own manifest also stops a
-      // capability approved for a different version from excusing it here.
-      const approved = baselineManifests.find((b) => b.version === manifest.version);
-
-      // diffManifests already sets report.baselineVersion from the baseline
-      // it is given, so there is nothing to recompute.
-      const report = diffManifests(approved || union, manifest);
-      if (report.escalated) {
-        anyEscalation = true;
-        escalations.push({ report, installPath: manifest.installPath });
-      }
-    }
-  }
+  const entries = compareTrees(baselineByName, currentByName);
+  const newPackages = entries.filter((entry) => entry.match.kind === 'new').map((entry) => entry.manifest);
+  const escalations = entries.filter((entry) => entry.report.escalated).map((entry) => ({
+    report: entry.report, installPath: entry.manifest.installPath, match: entry.match.kind,
+    id: reviewId(baselineByName.get(entry.manifest.name) || [], entry.manifest),
+  }));
+  const anyEscalation = escalations.length > 0;
+  const totalCurrentManifests = entries.length;
+  const totalBaselineManifests = [...baselineByName.values()].reduce((sum, manifests) => sum + manifests.length, 0);
 
   // A report nobody can aggregate is a report nobody keeps. --report-only
   // asks a team to collect weeks of findings before switching the gate on,
@@ -440,7 +422,8 @@ function cmdCheck(args) {
         riskScore: m.riskScore,
         riskFlags: m.riskFlags,
       })),
-      escalations: escalations.map(({ report, installPath }) => ({
+      escalations: escalations.map(({ report, installPath, match, id }) => ({
+        id, match,
         name: report.name,
         baselineVersion: report.baselineVersion,
         currentVersion: report.currentVersion,
@@ -463,15 +446,16 @@ function cmdCheck(args) {
     for (const m of newPackages) {
       console.log('  + ' + summaryLine(m));
     }
-    console.log('  (run "capsurface baseline" after review to accept these)\n');
+    console.log('  (run "capsurface review" to inspect and approve individual installations)\n');
     anyNewFailure = flags['fail-on-new'] === true;
   }
 
   if (escalations.length) {
     console.log(`CAPABILITY ESCALATIONS (${escalations.length}):`);
-    for (const { report: r, installPath } of escalations) {
+    for (const { report: r, installPath, id } of escalations) {
       const where = installPath ? `  [${installPath}]` : '';
-      console.log(`\n  ${r.name}: ${r.baselineVersion} -> ${r.currentVersion}${where}  (risk delta ${r.riskScoreDelta >= 0 ? '+' : ''}${r.riskScoreDelta})`);
+      console.log(`\n  ${r.name}: ${r.baselineVersion} -> ${r.currentVersion}${where}  (risk delta ${r.riskScoreDelta === null ? 'unknown' : (r.riskScoreDelta >= 0 ? '+' : '') + r.riskScoreDelta})`);
+      console.log(`    review ID: ${id}`);
       for (const c of r.changes) {
         console.log(`    [${c.type}] ${c.detail}`);
       }
@@ -506,16 +490,48 @@ function cmdCheck(args) {
     // printing it here means going to find the README mid-review.
     const baselineArg = flags.baseline || 'capsurface.lock.json';
     console.error('capsurface check FAILED.\n');
-    console.error('Each entry above names a dependency that can do something it could not do');
-    console.error('when the baseline was approved. Look at the package and version named,');
-    console.error('then either reject the upgrade or accept the new surface with:\n');
-    console.error(`    capsurface baseline ${manifestsDir} --out ${baselineArg}\n`);
+    console.error('Review the changed surface, incomplete analysis or ambiguous predecessor:');
+    console.error(`    capsurface review ${manifestsDir} --baseline ${baselineArg}\n`);
+    console.error('To accept one reviewed installation, use approve with its --id and --reason.');
     console.error('Commit the updated baseline in the same change, so the approval is');
     console.error('reviewed alongside the upgrade that caused it.');
     process.exit(1);
   } else {
     console.log('capsurface check passed.');
   }
+}
+
+function cmdReview(args) {
+  const { positional, flags } = parseFlags(args);
+  if (!positional[0]) die('usage: capsurface review <manifests-dir> --baseline <file> [--json | --format markdown|json|sarif] [--lockfile <package-lock.json>] [--project-root <dir>] [--out <file>] [--fail-on-new] [--report-only]');
+  const baselineFile = flags.baseline || 'capsurface.lock.json';
+  const format = flags.format || (flags.json ? 'json' : 'markdown');
+  if (!['markdown', 'json', 'sarif'].includes(format)) die('--format must be markdown, json or sarif');
+  if (flags.json && format !== 'json') die('--json cannot be combined with another --format');
+  if (flags.lockfile !== undefined && typeof flags.lockfile !== 'string') die('--lockfile requires a filename');
+  if (flags['project-root'] !== undefined && typeof flags['project-root'] !== 'string') die('--project-root requires a directory');
+  const provenance = flags.lockfile ? loadProvenance(flags.lockfile, flags['project-root']) : undefined;
+  const { report } = buildReview(loadBaseline(readJson(baselineFile)), loadManifestsFromDir(positional[0]), flags['fail-on-new'] === true, provenance);
+  report.baseline = baselineFile;
+  report.reportOnly = flags['report-only'] === true;
+  const text = format === 'markdown' ? renderMarkdown(report) : JSON.stringify(format === 'sarif' ? renderSarif(report) : report, null, 2) + '\n';
+  if (flags.out) {
+    fs.mkdirSync(path.dirname(flags.out), { recursive: true });
+    fs.writeFileSync(flags.out, text);
+    console.log(`Wrote review to ${flags.out}`);
+  } else {
+    process.stdout.write(text);
+  }
+  if (report.wouldFail && !report.reportOnly) process.exitCode = 1;
+}
+
+function cmdApprove(args) {
+  const { positional, flags } = parseFlags(args);
+  if (!positional[0]) die('usage: capsurface approve <manifests-dir> --baseline <file> --id <review-id> --reason <text>');
+  const baselineFile = flags.baseline || 'capsurface.lock.json';
+  const manifest = approve(baselineFile, loadManifestsFromDir(positional[0]), flags.id, flags.reason);
+  console.log(`Approved ${manifest.name}@${manifest.version}${manifest.installPath ? ` at ${manifest.installPath}` : ''}.`);
+  console.log(`Updated ${baselineFile}; commit the approval with the dependency change.`);
 }
 
 function cmdDiff(args) {
@@ -540,6 +556,10 @@ function main() {
       return cmdBaseline(rest);
     case 'check':
       return cmdCheck(rest);
+    case 'review':
+      return cmdReview(rest);
+    case 'approve':
+      return cmdApprove(rest);
     case 'diff':
       return cmdDiff(rest);
     case 'allowlist':
@@ -552,6 +572,8 @@ Usage:
   capsurface scan-tree <node_modules-dir> --out <manifests-dir>
   capsurface baseline <manifests-dir> [--out capsurface.lock.json]
   capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only] [--json]
+  capsurface review <manifests-dir> --baseline <file> [--json | --format markdown|json|sarif] [--lockfile <package-lock.json>] [--project-root <dir>] [--out <file>] [--fail-on-new] [--report-only]
+  capsurface approve <manifests-dir> --baseline <file> --id <review-id> --reason <text>
   capsurface diff <baseline-manifest.json> <current-manifest.json>
   capsurface allowlist <manifests-dir> [--format npm|pnpm|json] [--names] [--out <file>]
 `);
@@ -559,4 +581,8 @@ Usage:
   }
 }
 
-main();
+try {
+  main();
+} catch (error) {
+  die(error.message);
+}

@@ -17,6 +17,7 @@ versions in CI, before a compromised release gets merged.
 No dependencies, no build step.
 
 ```bash
+npm ci --ignore-scripts
 npx capsurface scan-tree node_modules --out .capsurface/manifests
 ```
 
@@ -39,10 +40,16 @@ Approve that surface once, commit it, and let CI fail when it grows:
 npx capsurface baseline .capsurface/manifests --out capsurface.lock.json
 git add capsurface.lock.json
 
-# in CI, after npm ci
+# in CI, before running dependency scripts or application code
+npm ci --ignore-scripts
 npx capsurface scan-tree node_modules --out .capsurface/manifests
 npx capsurface check .capsurface/manifests --baseline capsurface.lock.json
 ```
+
+Keep install scripts disabled until the scan and review finish, including
+for packages already on a script allowlist. Approval of an older version
+does not approve the new contents. Run required build scripts only after
+review, under your package manager's explicit script policy.
 
 When a dependency gains something it did not have, the check says what and
 exits non-zero:
@@ -156,6 +163,21 @@ workspace member's own `node_modules` still finds sibling workspace
 packages through workspace-root detection; pass `--boundary <dir>` to
 override this for layouts detection does not fit.
 
+The output directory includes a `.capsurface-snapshot` inventory. Keep it
+with the manifests: `baseline`, `check`, and `allowlist` use it to exclude
+stale files from earlier scans and verify that the current files are intact.
+Interrupted scans and concurrent writes fail rather than producing an
+apparently clean inventory. After a crashed process leaves the directory
+locked, rerun with a fresh output directory.
+
+Manifest schema v5 includes `coverage`: files and bytes read, skipped files,
+and I/O errors. Endpoints and env vars are collected beyond the report's
+evidence samples. A resource limit or read failure marks analysis incomplete;
+`scan`/`scan-tree` exit 2, and `baseline`/`allowlist` refuse to approve it.
+`check` reports incomplete analysis as a failure even if it was already
+present in the baseline. `--report-only` still reports those findings with
+exit 0, but cannot suppress an invalid or unfinished snapshot.
+
 Establish a baseline, once, after human review:
 
 ```bash
@@ -163,9 +185,10 @@ capsurface baseline .capsurface/manifests --out capsurface.lock.json
 git add capsurface.lock.json
 ```
 
-Gate CI on capability escalation, on every install after `npm ci`:
+Gate CI on capability escalation before running dependency scripts:
 
 ```bash
+npm ci --ignore-scripts
 capsurface scan-tree node_modules --out .capsurface/manifests
 capsurface check .capsurface/manifests --baseline capsurface.lock.json
 ```
@@ -189,12 +212,58 @@ nobody has a baseline for yet, fires on the first upgrade and gets removed
 the same week. Drop the flag once the findings look like ones you want to
 block on.
 
-An approved version is compared against its own approved manifest, not
-skipped because the version string matches. A version number does not pin
-content: a postinstall in one package can rewrite a sibling's files without
-any version changing anywhere.
+Each installation is compared with its own baseline path first, then an
+exact version or a single available predecessor. Several candidates with
+identical approved surfaces are interchangeable; different surfaces require
+explicit review. Permissions are never pooled across versions. pnpm store
+paths change with versions, so upgrades with multiple possible predecessors
+can require review until approved explicitly. Matching does not yet read
+lockfile dependency edges.
+
+A matching version is still scanned: a postinstall in one package can
+rewrite a sibling's files without changing its version.
+
+Review changes as Markdown (or add `--json`), then accept one installation
+with the ID from that report and a reason:
+
+```bash
+capsurface review .capsurface/manifests --baseline capsurface.lock.json --out review.md
+capsurface approve .capsurface/manifests --baseline capsurface.lock.json \
+  --id <review-id> --reason "Reviewed the new native build"
+```
+
+Approval updates only that installation and records the reason in the
+baseline. A changed scan or candidate baseline invalidates its review ID.
+
+Filesystem access now includes `filesystemRead`, `filesystemWrite` and
+`filesystemRemove` detail. An update that adds removal can fail the gate even
+when general filesystem access was already approved. See
+[filesystem operation detection](docs/REVIEW.md#filesystem-operations) for
+supported syntax and baseline migration.
+
+For dependency origins and GitHub Code Scanning output:
+
+```bash
+capsurface review .capsurface/manifests --baseline capsurface.lock.json \
+  --lockfile package-lock.json --format sarif --out review.sarif
+```
+
+The bundled [GitHub Action](action.yml) summarizes the review in the workflow
+run and generates JSON/SARIF reports. Artifact and Code Scanning uploads are
+opt-in. It keeps changes visible against the
+PR target even when the PR also updates approvals. See the
+[adoption workflow](examples/workflows/capsurface.yml) and
+[origin/SARIF documentation](docs/REVIEW.md#dependency-origin-and-sarif).
+
+Incomplete scans cannot be approved. See [the review workflow](docs/REVIEW.md)
+for exit codes, multiple versions, and PR summaries against the target branch.
 
 Produce the install-script allowlist npm 12 requires:
+
+This includes npm's implicit `node-gyp rebuild` when a package ships
+`binding.gyp` without an overriding `install`/`preinstall` or `gypfile: false`.
+The manifest records the possible command, not whether local npm policy
+authorizes it to run.
 
 ```bash
 capsurface allowlist .capsurface/manifests
@@ -314,12 +383,11 @@ the keyv/cacheable case study are in
 
 ## Verification
 
-Everything above is measured, not asserted. In short: pressure-tested against
-20,039 packages sampled across the registry, which turned up 11 rule errors,
-each fixed and measured; scanned across four real production apps (5,853
-packages, 2 CRITICALs, both legitimate); and held to a standing test of 82
-popular packages diffed two years and a major version apart, so a routine
-upgrade does not trip the gate.
+Validation includes regression tests, offline npm integration, hosted CI,
+and historical corpus scans covering 20,039 registry packages and 5,853
+installations across four production applications. Upgrade comparisons cover
+82 popular packages. These samples measure specific inputs; they do not
+guarantee detection or a particular false-positive rate for other projects.
 
 The full writeup, every table, and the numbers behind each claim are in
 [docs/VERIFICATION.md](docs/VERIFICATION.md). See also `test/` (`npm test`) and

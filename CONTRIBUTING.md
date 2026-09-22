@@ -2,7 +2,7 @@
 
 ## How it fits together
 
-Five modules, one direction of data flow, no framework. Small enough to read
+Small modules, one direction of data flow, no framework. Small enough to read
 in one sitting, which is the point: a security tool should be auditable by the
 person adopting it.
 
@@ -23,16 +23,24 @@ Where to change what:
 
 | You want to | Edit |
 |---|---|
+| Attribute filesystem operation detail | `lib/filesystem-operations.js` |
 | Add or fix a detection rule | `lib/categories.js` |
 | Change how source is read or capabilities extracted | `lib/scanner.js` |
 | Fold obfuscated specifiers before the rules see them | `lib/normalize.js` |
 | Change what fails the build vs. what is only reported | `lib/diff.js` |
+| Match an installation to its approved predecessor | `lib/comparison.js` |
+| Explain changes or apply a selective approval | `lib/review.js`, `lib/approval.js` |
+| Explain npm dependency origins | `lib/provenance.js` |
+| Export review results to SARIF | `lib/sarif.js` |
+| Run the GitHub review Action | `action.yml`, `bin/action-review.js` |
+| Read and publish scan inventories | `lib/snapshot.js` |
 | Change how packages are found on disk | `lib/discovery.js` |
 | Change CLI flags, output, exit codes | `bin/capsurface.js` |
 
-`lib/rules-version.js` hashes everything in `categories.js` that affects a
-manifest. Touching a rule changes that hash, and `check` warns that existing
-baselines were written by different rules. That is intentional: edit a rule and
+`lib/rules-version.js` hashes the detection rules and the scanner,
+normalizer, discovery, diff, comparison and filesystem-operation implementations (with line endings normalized).
+Changing these changes that hash, and `check` warns that existing
+baselines were written by different rules. That is intentional: edit the engine and
 every committed baseline means something slightly different, which a security
 gate must not hide.
 
@@ -62,7 +70,9 @@ npm test                        # needs Node >=18 for node:test; the CLI itself 
 
 ## Before opening a PR
 
-- `npm test` passes (`node --test test/*.test.js`).
+- `npm test` and `npm run test:integration` pass. The integration test needs
+  npm and Git; it packs local fixtures and the CLI, installs them offline with
+  lifecycle scripts disabled, and exercises review and selective approval.
 - `./examples/run-demo.sh` still catches the bundled escalation fixture.
 - New behavior has a regression test in `test/`. If you're fixing a bug, the
   test should fail on the old code and pass on the new code. That is what makes
@@ -91,13 +101,53 @@ npm test                        # needs Node >=18 for node:test; the CLI itself 
   `node:assert`) for the same reason. No new dev dependencies without a good
   reason either.
 
+## Commits and pull requests
+
+Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+for commit subjects and PR titles:
+
+```text
+feat(review): add SARIF output
+fix(scanner): reject incomplete scans
+test(integration): cover selective approvals
+```
+
+Use `feat` for a new feature, `fix` for a bug fix, and `docs`, `test`, `ci`,
+`refactor`, `perf`, `build`, `style`, `chore` or `revert` when appropriate.
+Scopes are optional; use a module or subsystem when it clarifies the change.
+Write a short imperative description in English, without a trailing period.
+Add a body when the problem, tradeoff or compatibility impact needs explaining.
+Mark incompatible public-interface changes with `!` and a `BREAKING CHANGE:`
+footer describing the migration.
+
+Keep commits focused and reviewable. The PR description should explain the
+problem, resulting behavior, validation and compatibility impact using the
+repository template. Include measurements for detection changes; do not
+claim a benchmark or integration passed unless it was run. PR titles are
+checked in CI. Keep author attribution accurate.
+
+## Release notes and generated files
+
+Update `CHANGELOG.md` for changes users need to know about, under `Unreleased`.
+Describe the final behavior and migration, not the sequence of implementation
+steps. Internal refactors and test-only changes usually need no release note.
+Measurements belong in `docs/VERIFICATION.md`; check results belong in the PR.
+Do not invent release dates or create a release during an ordinary code change.
+
+Generated reports, scan inventories, package tarballs and profiling output
+are not source files. Keep them in a temporary directory or `.capsurface/`.
+The reviewed baseline is an intentional versioned input in consuming projects.
+CI artifacts are temporary outputs; enable uploads only when they are useful
+for review or debugging. Small deterministic test fixtures belong in `test/`
+or `examples/` and should be clearly identified.
+
 ## Code style
 
 - Plain CommonJS (`require`/`module.exports`), no build step, no TypeScript
   compilation. The source is what runs.
 - Comments explain why, briefly, not what the code obviously does and not the
-  history of how it got here. A long explanation of a bug it once had belongs in
-  the PR description and `CHANGELOG.md`, not stacked in a doc comment forever.
+  history of how it got here. Explain bug history in the PR; keep source comments focused on current
+  behavior and invariants.
 - Match the existing style in the file you are editing over any personal
   preference.
 
