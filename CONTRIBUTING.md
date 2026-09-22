@@ -24,7 +24,7 @@ Where to change what:
 | You want to | Edit |
 |---|---|
 | Attribute filesystem operation detail | `lib/filesystem-operations.js` |
-| Add or fix a detection rule | `lib/categories.js` |
+| Add or fix a detection rule | `lib/categories.js`, `lib/ast-capabilities.js` |
 | Change how source is read or capabilities extracted | `lib/scanner.js` |
 | Fold obfuscated specifiers before the rules see them | `lib/normalize.js` |
 | Change what fails the build vs. what is only reported | `lib/diff.js` |
@@ -42,7 +42,7 @@ Where to change what:
 
 `lib/rules-version.js` hashes the detection rules and the scanner,
 normalizer, discovery, diff, comparison, filesystem-operation, content-integrity
-approval-policy, source-context, install-context and AST import implementations (with line endings normalized).
+approval-policy, source-context, install-context AST import and AST capability implementations (with line endings normalized).
 Changing these changes that hash, and `check` warns that existing
 baselines were written by different rules. That is intentional: edit the engine and
 every committed baseline means something slightly different, which a security
@@ -63,7 +63,7 @@ Two decisions shape everything:
 
 ## Setup
 
-No install step. The default scanner has zero dependencies. Experimental AST import context
+No install step. The default scanner has zero dependencies. Experimental AST analysis
 uses an optional, exact-version Acorn peer; no parser is loaded in normal scans.
 
 ```bash

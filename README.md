@@ -170,7 +170,7 @@ Interrupted scans and concurrent writes fail rather than producing an
 apparently clean inventory. After a crashed process leaves the directory
 locked, rerun with a fresh output directory.
 
-Manifest schema v8 includes `coverage`: files and bytes read, skipped files,
+Manifest schema v9 includes `coverage`: files and bytes read, skipped files,
 and I/O errors. Endpoints and env vars are collected beyond the report's
 evidence samples. A resource limit or read failure marks analysis incomplete;
 `scan`/`scan-tree` exit 2, and `baseline`/`allowlist` refuse to approve it.
@@ -189,8 +189,9 @@ helps explain findings without claiming that credential data is transmitted.
 `installContext` shows [potential paths from installation scripts](docs/REVIEW.md#installation-script-paths)
 through literal local imports, with unresolved references and analysis limits.
 An experimental [`scan --deep` mode](docs/REVIEW.md#experimental-ast-import-analysis)
-uses an optional parser to resolve immutable loader aliases and static templates.
-It improves import context, not capability detection or blocking rules.
+uses an optional parser to detect module capabilities behind immutable loader
+aliases and static templates. It scans all source files, fails on unavailable AST
+analysis, and prevents silently downgrading a deep baseline to a basic scan.
 
 Establish a baseline, once, after human review:
 
@@ -320,7 +321,8 @@ capsurface diff old-manifest.json new-manifest.json
 
 ## Limitations
 
-This is static regex-based heuristic analysis, not a sound one.
+The default scanner uses source-text heuristics; experimental AST analysis
+supplements module acquisition. Neither mode is a sound analysis.
 
 - Cannot see through minification, or a specifier that only exists once the
   program runs (`require(process.env.MOD)`, a name built in a loop).
@@ -350,7 +352,8 @@ This is static regex-based heuristic analysis, not a sound one.
   `lib/scanner.js`) is a hand-rolled character scanner, not a real parser.
   Regex-vs-division is ambiguous in JS without full parsing; see the doc
   comment there for what is and is not handled, and `${...}` template
-  interpolation is a known blind spot.
+  interpolation is a known blind spot in the default scanner. Deep mode
+  analyzes supported module acquisitions inside interpolations.
 - Yarn Berry's Plug'n'Play mode does not produce a `node_modules` directory
   at all, so it is not scannable as-is; set `nodeLinker: node-modules` in
   `.yarnrc.yml`, or use npm, pnpm, or classic Yarn. The other three layouts
@@ -371,7 +374,7 @@ Where capsurface sits among the tools that already exist:
 | GuardDog 3.2 (Datadog) | YARA rules, plus an optional kernel sandbox and registry-metadata rules | Point-in-time, one version in isolation | whole package | Python + native | OSS CLI, local |
 | js-x-ray 8.2 (NodeSecure) | AST with a variable tracer and constant folding | Point-in-time, per file | whole package | several | OSS library |
 | wormguard 1.0.3 | AST with taint approximation, IoC corpus, script hashes | Delta on inventory and script hashes | install scripts | 7 | OSS CLI, local |
-| capsurface | Source-text rules; optional AST import context | Delta on capability surface, vs a reviewed baseline | whole package | none by default | OSS CLI, local, offline |
+| capsurface | Source-text rules; optional AST module acquisition | Delta on capability surface, vs a reviewed baseline | whole package | none by default | OSS CLI, local, offline |
 
 Two things are solved better elsewhere, and capsurface does not compete on
 either. Socket's real-time monitoring and Semgrep's malicious-package database

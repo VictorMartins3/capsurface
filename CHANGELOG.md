@@ -7,11 +7,11 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
-- Experimental `scan --deep` and `scan-tree --deep` import context, using optional
-  Acorn 8.15.0 to resolve immutable loader aliases, `createRequire` and static
-  templates with lexical scopes. Unavailable analysis is reported explicitly;
-  capability detection and blocking behavior are unchanged.
-
+- Experimental `scan --deep` and `scan-tree --deep` capability detection and
+  import context, using optional Acorn 8.15.0 to resolve immutable loader aliases,
+  `createRequire` and static templates with lexical scopes. Acquired modules
+  contribute filesystem, network, process-execution, dynamic-evaluation and
+  native-code capabilities with original source evidence.
 - Potential local import paths from supported installation commands, with
   network/credential locations and unresolved-reference reasons in reviews.
 - File-level correlation of network and credential indicators, with original
@@ -37,7 +37,12 @@ Notable user-facing changes are recorded here using
 
 ### Changed
 
-- Manifest schema v8 includes filesystem operation detail, installed-content
+- `--deep` analyzes all source files, including packages without install hooks.
+  AST failures now make scans incomplete, exit with status 2 and prevent
+  selective approval. Manifests record the analysis profile and bounded AST
+  coverage details. Checks reject a basic scan against a deep baseline.
+  Existing users of experimental deep scans must rescan before review.
+- Manifest schema v9 includes filesystem operation detail, installed-content
   integrity and explanatory source/installation context. New selective
   approvals require a complete content digest. Context does not add risk
   points or blocking rules.

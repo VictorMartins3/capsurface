@@ -29,6 +29,43 @@ and URI containment. Generated SARIF has also been validated against the
 repository with the feature enabled; artifact validation alone does not test
 that integration.
 
+### AST module-acquisition capabilities
+
+Compared the scanner at `5a54746` with both basic and deep scans on 5,853
+physical installations in uptime-kuma, documenso, outline and nocodb. The
+capability engine fingerprint was `fb10dff7c827`; local runtime was Node 26.8.1
+with optional Acorn 8.15.0.
+
+| Measurement | Result |
+| --- | ---: |
+| Basic capability/evidence records changed | 0 |
+| Basic risk records changed | 0 |
+| Basic source or installed-content failures | 0 |
+| New or removed capability categories in deep scans | 0 |
+| Deep installations with unavailable AST analysis | 3,800 |
+| Source files submitted to AST analysis | 206,328 |
+| Files with unavailable AST analysis | 91,551 |
+| Deep risk records changed | 3,808 |
+
+Discovery reported no errors or escaped links. AST limits include unsupported
+TypeScript/JSX, parse failures, dynamic scopes and source/resource budgets.
+Unavailable analysis now blocks deep scans; the risk changes above largely
+reflect incomplete coverage, not newly discovered dangerous capabilities.
+The existing category set was already present in the basic manifests wherever
+these corpus scans acquired a recognized module through the AST.
+
+Twenty optional-parser tests include controlled regressions for aliased module
+acquisition without install hooks, `createRequire`, exact module names,
+source evidence and correlation, bounded failure reporting, rejected approvals,
+CLI escalation checks and profile downgrades. These fixtures establish the new
+detection behavior; the production corpus does not establish a detection-rate
+gain. All 333 default tests, offline npm integration and the demo also passed.
+
+Deep scanning remains experimental and is not a drop-in CI mode for these
+production trees. The uptime-kuma tree includes the previously documented
+synthetic abort-controller compromise. This is neither a clean registry dataset
+nor a performance or malware-precision benchmark; no dependency scripts ran.
+
 ### Optional AST import context
 
 Compared `ecfefd9` with `scanPackageDir(dir, { deep: true })` on the same four
