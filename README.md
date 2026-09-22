@@ -14,7 +14,7 @@ versions in CI, before a compromised release gets merged.
 
 ## Quick start
 
-No dependencies, no build step.
+No mandatory dependencies, no build step.
 
 ```bash
 npm ci --ignore-scripts
@@ -126,7 +126,7 @@ purpose, since that is exactly where flatmap-stream hid.
 
 ## Install
 
-No dependencies, no build step, just Node.js >= 14.
+No mandatory dependencies, no build step, just Node.js >= 14.
 
 ```bash
 chmod +x bin/capsurface.js
@@ -188,6 +188,9 @@ helps explain findings without claiming that credential data is transmitted.
 
 `installContext` shows [potential paths from installation scripts](docs/REVIEW.md#installation-script-paths)
 through literal local imports, with unresolved references and analysis limits.
+An experimental [`scan --deep` mode](docs/REVIEW.md#experimental-ast-import-analysis)
+uses an optional parser to resolve immutable loader aliases and static templates.
+It improves import context, not capability detection or blocking rules.
 
 Establish a baseline, once, after human review:
 
@@ -368,7 +371,7 @@ Where capsurface sits among the tools that already exist:
 | GuardDog 3.2 (Datadog) | YARA rules, plus an optional kernel sandbox and registry-metadata rules | Point-in-time, one version in isolation | whole package | Python + native | OSS CLI, local |
 | js-x-ray 8.2 (NodeSecure) | AST with a variable tracer and constant folding | Point-in-time, per file | whole package | several | OSS library |
 | wormguard 1.0.3 | AST with taint approximation, IoC corpus, script hashes | Delta on inventory and script hashes | install scripts | 7 | OSS CLI, local |
-| capsurface | Source-text rules over folded literals | Delta on capability surface, vs a reviewed baseline | whole package | none | OSS CLI, local, offline |
+| capsurface | Source-text rules; optional AST import context | Delta on capability surface, vs a reviewed baseline | whole package | none by default | OSS CLI, local, offline |
 
 Two things are solved better elsewhere, and capsurface does not compete on
 either. Socket's real-time monitoring and Semgrep's malicious-package database
@@ -418,7 +421,7 @@ fail the CI check with the exact capability diff.
 
 ## Design notes
 
-- No dependencies. Zero install friction, the point of building this fast
+- No mandatory dependencies. Zero install friction, the point of building this fast
   and cheap first.
 - JSON in, JSON out. Manifests and the lock file diff cleanly in PRs and
   feed easily into other tooling.

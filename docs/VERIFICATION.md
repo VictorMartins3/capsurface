@@ -29,6 +29,39 @@ and URI containment. Generated SARIF has also been validated against the
 repository with the feature enabled; artifact validation alone does not test
 that integration.
 
+### Optional AST import context
+
+Compared `ecfefd9` with `scanPackageDir(dir, { deep: true })` on the same four
+production trees, totaling 5,853 physical installations. The final AST engine
+(`6451b5eff1c2`) was then rechecked on all 40 installations with non-inert
+installation hooks after the static-value resource limits were finalized.
+
+- No capability records, evidence, risk scores or risk flags changed.
+- No source/content-integrity failures, discovery errors, escaped links or
+  graph-budget truncations were observed.
+- All 40 hooks retained the same graph paths and unresolved references:
+  26 supported entries and 14 unsupported commands. This corpus did not
+  demonstrate additional reachable paths from the new alias resolution.
+- Across packages with hooks, the AST pass processed 14,987 source files and
+  marked 2,435 unavailable. These counts include files not reachable from a
+  recognized hook; unavailable files did not change the observed hook graphs.
+  TypeScript/JSX, syntax and resource limits remain explicit limitations.
+- Eleven focused AST tests demonstrate immutable loader aliases, supported
+  `createRequire` bases, template interpolation, scope shadowing, mutation and
+  escape handling, parse/resource failures, review exports, CLI flags, package
+  source modes and parser isolation. The 333 existing tests, offline npm
+  integration and escalation demo also passed.
+
+Measurements used Node 26.8.1 and Acorn 8.15.0 on local installed trees. The
+uptime-kuma `abort-controller` installation contains the previously documented
+synthetic compromise. This is not a clean registry dataset, a precision study
+or a performance benchmark. No package scripts were executed.
+
+The optional parser has separate Linux/Windows CI tests on Node 18 and 24;
+the Node 14 CLI check also exercises `--deep`. Default CI jobs still run without
+installing a parser. Run `npm run test:deep` after explicitly installing the
+supported optional peer, as described in `CONTRIBUTING.md`.
+
 ### Coverage and inventory comparison
 
 Compared the scanner at `3cff46b` with the coverage, indicator and native-install
