@@ -23,6 +23,67 @@ block unapproved new packages. `--report-only` preserves the findings but
 returns 0 for a completed comparison; invalid snapshots still fail.
 The report file is written even when the comparison returns 1.
 
+## Review published tarballs before installation
+
+`scan-lock` reads an npm lockfile v2/v3 and a local archive map. It verifies each
+archive against the lockfile's strongest supported integrity digest, scans its
+published content in a private temporary directory and writes the same manifest
+inventory consumed by `baseline`, `review`, `check` and `approve`. It does not
+install dependencies, run lifecycle scripts or make network requests.
+
+Obtain the exact tarballs separately from your trusted registry or cache. The
+map keys must equal the lockfile entries' `resolved` URLs; values are local
+filenames, relative to the map file or absolute:
+
+```json
+{
+  "https://registry.npmjs.org/example/-/example-1.0.0.tgz": "archives/example-1.0.0.tgz",
+  "https://registry.npmjs.org/example/-/example-1.1.0.tgz": "archives/example-1.1.0.tgz"
+}
+```
+
+Use a previously reviewed lockfile for the before snapshot:
+
+```bash
+capsurface scan-lock before/package-lock.json --tarballs archives.json --out .capsurface/before
+capsurface baseline .capsurface/before --out .capsurface/before.lock.json
+capsurface scan-lock package-lock.json --tarballs archives.json --out .capsurface/after
+capsurface review .capsurface/after --baseline .capsurface/before.lock.json --lockfile package-lock.json
+```
+
+The map must cover every non-root lockfile package, including optional and
+platform-specific entries; it is not filtered for the current machine. Add
+`--deep` to both scans for AST analysis, or `--format sarif` to the review for
+SARIF output. Existing review exit codes and selective approval apply. Creating
+a baseline does not establish that the before version was safe.
+
+Tarball manifests retain `scanOrigin: npm-tarball-v1` and the verified archive
+integrity and resolved URL in `artifact`. Reviews identify that input kind.
+Tarball and installed-package manifests cannot silently satisfy one another's
+baseline: installation may generate, patch or omit files. Use separate baselines
+and rescan both sides from the same input kind. Integrity binds bytes to the
+provided lockfile; it is not a publisher signature or proof of benign content.
+
+The archive reader supports gzip-compressed USTAR, per-entry POSIX PAX metadata
+and GNU long names. Files must be below `package/`. It rejects traversal, links,
+special files, conflicting duplicates, nonportable paths and case/Unicode
+collisions. Benign `.` path segments and identical regular-file duplicates are
+normalized; differing duplicate contents fail. File modes/owners are not
+restored, and no archive entry is executed.
+
+Limits are 64 MiB compressed and 256 MiB expanded per archive, 100,000 archive
+entries, 128 path components, 4,096 path characters and 16 KiB extended metadata.
+A lockfile scan permits 10,000 installations, 1 GiB compressed and 2 GiB expanded
+in total. SHA-256/384/512 integrity is required; legacy SHA-1-only entries,
+workspaces, Git/local dependencies, bundled `node_modules`, `.git` entries,
+sparse files and unsupported archive extensions fail explicitly. These limits
+can reject legitimate packages; no rejected archive is treated as a clean scan.
+
+Missing archives, integrity/identity mismatches or extraction failures leave the
+output inventory incomplete, so it cannot be reviewed or approved. Source-level
+coverage failures retain a valid inventory for diagnostics but exit 2 and block
+approval. Temporary extracted files are removed on completion or failure.
+
 ## Accept one installation
 
 Copy its 32-character review ID from the report:

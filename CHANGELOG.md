@@ -7,6 +7,12 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- Offline `scan-lock` analysis of published npm tarballs selected by lockfile
+  v2/v3, with mandatory integrity checks, bounded extraction, original source
+  evidence and reuse of review/approval workflows before installation.
+- Explicit separation of tarball and installed-package scan origins; crossing
+  origins requires review rather than silently reusing a baseline.
+
 - Deep-mode environment enumeration and network operation detail, with
   call-site evidence and review of newly observed operations even when the
   parent capability was already approved.

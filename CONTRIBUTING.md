@@ -38,13 +38,14 @@ Where to change what:
 | Explain npm dependency origins | `lib/provenance.js` |
 | Export review results to SARIF | `lib/sarif.js` |
 | Run the GitHub review Action | `action.yml`, `bin/action-review.js` |
+| Scan lockfile-resolved local archives | `lib/lockfile-scan.js`, `lib/tarball.js` |
 | Read and publish scan inventories | `lib/snapshot.js` |
 | Change how packages are found on disk | `lib/discovery.js` |
 | Change CLI flags, output, exit codes | `bin/capsurface.js` |
 
 `lib/rules-version.js` hashes the detection rules and the scanner,
 normalizer, discovery, diff, comparison, filesystem-operation, content-integrity
-approval-policy, source-context, install-context AST import, typed-parser, process-operation, network-operation and AST capability implementations (with line endings normalized).
+approval-policy, source-context, install-context AST import, typed-parser, process-operation, network-operation, tarball, lockfile-scan and AST capability implementations (with line endings normalized).
 Changing these changes that hash, and `check` warns that existing
 baselines were written by different rules. That is intentional: edit the engine and
 every committed baseline means something slightly different, which a security
@@ -125,6 +126,12 @@ Keep the normal regression and integration jobs independent of this install.
 The Action's explicit `deep` option provisions these same peers in its trusted
 checkout as workflow setup, with scripts disabled. Scanner and review commands
 remain offline; offline workflows can provision parsers before invoking the CLI.
+
+Archive changes need adversarial extraction regressions and compatibility checks
+against real published tarballs. `scan-lock` accepts a bounded archive subset;
+unsupported forms must fail before an inventory is certified. It deliberately
+has no downloader or package-manager invocation. Keep archive acquisition outside
+the scanner and generated tarballs outside the repository.
 
 ## Commits and pull requests
 

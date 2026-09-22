@@ -198,6 +198,11 @@ in report-only mode.
 Optional `acorn-typescript@1.4.13` adds typed source and JSX support. Both modes
 also scan `.mts` and `.cts` files; unsupported TypeScript remains explicit.
 
+To review published content before installing dependencies, use
+[`scan-lock`](docs/REVIEW.md#review-published-tarballs-before-installation) with
+an npm lockfile and local tarball map. Archive integrity is required; dependency
+scripts never run. Compare the resulting snapshots with the same review commands.
+
 Establish a baseline, once, after human review:
 
 ```bash

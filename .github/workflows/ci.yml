@@ -75,6 +75,19 @@ jobs:
           fs.writeFileSync(path.join(dir, 'index.ts'), "const load = require as NodeRequire; load('child_process').exec('echo fixture');");
           const result = require('./lib/scanner').scanPackageDir(dir, { deep: true });
           if (!result.astCoverage.complete || !result.capabilities.exec.present || !result.capabilities.execShell.present) process.exit(1);
+          const { tar, integrity } = require('./test/tarball-fixture');
+          const archive = require('zlib').gzipSync(tar([
+            { name: 'package/package.json', body: '{"name":"archive-smoke","version":"1.0.0"}' },
+            { name: 'package/index.js', body: 'Object.keys(process.env);' }
+          ]));
+          fs.writeFileSync(path.join(dir, 'package.tgz'), archive);
+          fs.writeFileSync(path.join(dir, 'map.json'), JSON.stringify({ 'https://registry.example/package.tgz': 'package.tgz' }));
+          fs.writeFileSync(path.join(dir, 'lock.json'), JSON.stringify({ lockfileVersion: 3, packages: {
+            '': {}, 'node_modules/archive-smoke': { version: '1.0.0', resolved: 'https://registry.example/package.tgz', integrity: integrity(archive) }
+          } }));
+          const scanned = require('./lib/lockfile-scan').scanLockfile(path.join(dir, 'lock.json'), path.join(dir, 'map.json'), path.join(dir, 'manifests'), { deep: true });
+          if (scanned.count !== 1 || scanned.incomplete) process.exit(1);
+          if (!require('./lib/snapshot').readManifests(path.join(dir, 'manifests'))[0].capabilities.envEnumeration.present) process.exit(1);
           JS
 
   review-action:
