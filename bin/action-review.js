@@ -12,6 +12,8 @@ function main() {
   const baseline = process.env.CAPSURFACE_BASELINE || 'capsurface.lock.json';
   const lockfile = process.env.CAPSURFACE_LOCKFILE || 'package-lock.json';
   const baseRef = process.env.CAPSURFACE_BASE_REF || '';
+  const deep = process.env.CAPSURFACE_DEEP || 'false';
+  if (!['true', 'false'].includes(deep)) throw new Error('deep must be true or false');
   const failOnNew = process.env.CAPSURFACE_FAIL_ON_NEW || 'true';
   if (!['true', 'false'].includes(failOnNew)) throw new Error('fail-on-new must be true or false');
   if (baseRef && !/^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$/.test(baseRef)) throw new Error('base-ref must be a full commit SHA');
@@ -39,7 +41,7 @@ function main() {
   }
   // A scan with incomplete package analysis may still have a valid inventory.
   // review/check keep that failure visible; a broken inventory remains fatal.
-  const scan = run(['scan-tree', 'node_modules', '--out', manifests], [0, 2]);
+  const scan = run(['scan-tree', 'node_modules', '--out', manifests, ...(deep === 'true' ? ['--deep'] : [])], [0, 2]);
   process.stdout.write(scan.stdout);
   process.stderr.write(scan.stderr);
   const flags = failOnNew === 'true' ? ['--fail-on-new'] : [];

@@ -121,6 +121,9 @@ npm run test:deep
 ```
 
 Keep the normal regression and integration jobs independent of this install.
+The Action's explicit `deep` option provisions these same peers in its trusted
+checkout as workflow setup, with scripts disabled. Scanner and review commands
+remain offline; offline workflows can provision parsers before invoking the CLI.
 
 ## Commits and pull requests
 

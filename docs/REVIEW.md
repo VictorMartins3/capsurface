@@ -292,9 +292,25 @@ This is a deliberate change from the earlier experimental context-only mode:
 rescan both sides of a review before interpreting new capabilities as package
 changes. Some production trees remain unsuitable for strict deep scans; see the
 [measured coverage and remaining limitations](VERIFICATION.md).
-The composite Action uses basic scanning and cannot satisfy a deep baseline;
-use the CLI in CI with an explicitly provisioned trusted parser environment.
-No parser is installed or fetched during a scan.
+The composite Action defaults to basic scanning. Set `deep: 'true'` to use the
+same AST analysis in PR reviews, including against an existing deep baseline:
+
+```yaml
+with:
+  deep: 'true'
+```
+
+This opt-in adds a setup step that installs Acorn 8.15.0 and acorn-typescript
+1.4.13 in the trusted Action directory, with lifecycle scripts, lockfile writes,
+audit and funding requests disabled. Setup needs npm registry access; scanning
+and review remain offline and never execute dependency scripts. Parser setup
+failure stops the job. Use the CLI with a pre-provisioned trusted parser
+environment for offline CI. No parser is installed or fetched by a scan command.
+
+Deep coverage errors still fail the Action with `report-only: 'true'`; completed
+reports remain available through its outputs and job summary. Turning deep mode
+off cannot satisfy a previously deep baseline. Keep the Action pinned to a
+reviewed commit, as in the example workflow.
 
 ## Process launch modes
 
