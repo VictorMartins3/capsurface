@@ -242,8 +242,9 @@ capsurface review .capsurface/manifests --baseline capsurface.lock.json \
   --lockfile package-lock.json --format sarif --out review.sarif
 ```
 
-The bundled [GitHub Action](action.yml) publishes Markdown, JSON and SARIF
-before enforcing the proposed baseline. It keeps changes visible against the
+The bundled [GitHub Action](action.yml) summarizes the review in the workflow
+run and generates JSON/SARIF reports. Artifact and Code Scanning uploads are
+opt-in. It keeps changes visible against the
 PR target even when the PR also updates approvals. See the
 [adoption workflow](examples/workflows/capsurface.yml) and
 [origin/SARIF documentation](docs/REVIEW.md#dependency-origin-and-sarif).
@@ -376,12 +377,11 @@ the keyv/cacheable case study are in
 
 ## Verification
 
-Everything above is measured, not asserted. In short: pressure-tested against
-20,039 packages sampled across the registry, which turned up 11 rule errors,
-each fixed and measured; scanned across four real production apps (5,853
-packages, 2 CRITICALs, both legitimate); and held to a standing test of 82
-popular packages diffed two years and a major version apart, so a routine
-upgrade does not trip the gate.
+Validation includes regression tests, offline npm integration, hosted CI,
+and historical corpus scans covering 20,039 registry packages and 5,853
+installations across four production applications. Upgrade comparisons cover
+82 popular packages. These samples measure specific inputs; they do not
+guarantee detection or a particular false-positive rate for other projects.
 
 The full writeup, every table, and the numbers behind each claim are in
 [docs/VERIFICATION.md](docs/VERIFICATION.md). See also `test/` (`npm test`) and

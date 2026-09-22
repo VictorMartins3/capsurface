@@ -28,7 +28,7 @@ jobs:
         run: npm ci --ignore-scripts
       # Pin the Action to a reviewed commit, including its scanner. No npm
       # publication is needed and project-local binaries cannot shadow it.
-      - uses: VictorMartins3/capsurface@9b50d44309bbdaf22694cce03e17005689ee8dc6
+      - uses: VictorMartins3/capsurface@0d1fc42e026ed241965d99cd907085dbf7ec67bd
         with:
           fail-on-new: 'true'
           # Start in observation mode; set false to enforce approvals.
@@ -37,8 +37,10 @@ jobs:
           # Enable only when Code Scanning is available in the repository
           # and security-events: write / actions: read are granted above.
           upload-sarif: 'false'
+          # Optional downloadable reports; retention is 14 days.
+          upload-artifact: 'false'
 
 # Before adoption, commit an initial capsurface.lock.json on the target branch.
 # The Action reads that baseline from the PR base SHA for Markdown/JSON/SARIF,
-# then checks the proposed baseline separately. The job summary and artifact
-# remain available when the capability gate fails. No PR comment is posted.
+# then checks the proposed baseline separately. The job summary remains
+# available when the capability gate fails. Artifact upload is optional. No PR comment is posted.

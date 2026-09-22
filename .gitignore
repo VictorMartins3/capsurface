@@ -1,6 +1,8 @@
 # capsurface's own scan output, if run against this repo itself
 .capsurface/
 capsurface.lock.json.bak
+*.sarif
+*.tgz
 
 # Node
 node_modules/

@@ -100,13 +100,53 @@ npm test                        # needs Node >=18 for node:test; the CLI itself 
   `node:assert`) for the same reason. No new dev dependencies without a good
   reason either.
 
+## Commits and pull requests
+
+Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+for commit subjects and PR titles:
+
+```text
+feat(review): add SARIF output
+fix(scanner): reject incomplete scans
+test(integration): cover selective approvals
+```
+
+Use `feat` for a new feature, `fix` for a bug fix, and `docs`, `test`, `ci`,
+`refactor`, `perf`, `build`, `style`, `chore` or `revert` when appropriate.
+Scopes are optional; use a module or subsystem when it clarifies the change.
+Write a short imperative description in English, without a trailing period.
+Add a body when the problem, tradeoff or compatibility impact needs explaining.
+Mark incompatible public-interface changes with `!` and a `BREAKING CHANGE:`
+footer describing the migration.
+
+Keep commits focused and reviewable. The PR description should explain the
+problem, resulting behavior, validation and compatibility impact using the
+repository template. Include measurements for detection changes; do not
+claim a benchmark or integration passed unless it was run. PR titles are
+checked in CI. Keep author attribution accurate.
+
+## Release notes and generated files
+
+Update `CHANGELOG.md` for changes users need to know about, under `Unreleased`.
+Describe the final behavior and migration, not the sequence of implementation
+steps. Internal refactors and test-only changes usually need no release note.
+Measurements belong in `docs/VERIFICATION.md`; check results belong in the PR.
+Do not invent release dates or create a release during an ordinary code change.
+
+Generated reports, scan inventories, package tarballs and profiling output
+are not source files. Keep them in a temporary directory or `.capsurface/`.
+The reviewed baseline is an intentional versioned input in consuming projects.
+CI artifacts are temporary outputs; enable uploads only when they are useful
+for review or debugging. Small deterministic test fixtures belong in `test/`
+or `examples/` and should be clearly identified.
+
 ## Code style
 
 - Plain CommonJS (`require`/`module.exports`), no build step, no TypeScript
   compilation. The source is what runs.
 - Comments explain why, briefly, not what the code obviously does and not the
-  history of how it got here. A long explanation of a bug it once had belongs in
-  the PR description and `CHANGELOG.md`, not stacked in a doc comment forever.
+  history of how it got here. Explain bug history in the PR; keep source comments focused on current
+  behavior and invariants.
 - Match the existing style in the file you are editing over any personal
   preference.
 

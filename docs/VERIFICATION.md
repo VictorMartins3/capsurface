@@ -1,108 +1,69 @@
 # Verification and prior art
 
-The full methodology behind the summary in the [README](../README.md): what was measured, against which corpora, and where capsurface sits among the tools that already exist.
+This document records validation methods, corpus measurements and limitations.
+Historical measurements describe their stated inputs and scanner revision;
+they are not guarantees about every dependency or future release.
 
 ## Verification
 
-See `test/` (`npm test`) and CHANGELOG.md for what was found and
-fixed while pressure-testing this against real installs instead of only
-the bundled demo.
+Run the regression suite, offline npm integration and escalation demo:
 
-### Coverage and inventory hardening (2026-09-21)
+```bash
+npm test
+npm run test:integration
+npm run demo
+```
 
-Compared the scanner at `3cff46b` with the coverage/indicator/native-install
-changes on the four local production trees below: 5,853 physical package
-installs, including repeated names/versions across applications. Discovery
-reported no errors or escaped links, and all package analyses completed
-within the new resource budgets.
+CI runs the tests on Node 18, 20, 22 and 24 across Linux, macOS and Windows.
+A separate job checks the CLI on Node 14. The composite Action test verifies
+that an unapproved upgrade fails, selective approval passes, and the report
+against the target baseline still shows the change. It covers the default
+summary-only mode and opt-in artifact upload.
 
-- 64 installs gained additional collected endpoints or env vars beyond the
-  old 20/40 truncation limits. For example, `es-abstract@1.24.2` in
-  uptime-kuma went from 20 to 4,332 literal endpoints. These include reference
-  URLs, not necessarily runtime network destinations.
-- One existing capability category changed: `unix-dgram@2.0.7` in outline
-  now reports its implicit install command. Its shipped `binding.gyp` and
-  lack of an explicit install/preinstall confirm npm's `node-gyp rebuild`
-  default. This is a legitimate native build requiring an approval decision.
-- No package gained or lost a risk flag. This is a before/after observation
-  on these installed trees, not a claim of universal zero false positives
-  or a new benchmark of upgrade-gate precision.
+The npm integration installs locally packed fixtures with scripts disabled.
+It checks that install hooks and a competing project-local CLI never execute,
+that approvals remain selective, and that invalid scan inventories fail.
+SARIF tests cover rule references, severity, fingerprints, lockfile locations
+and URI containment. Generated SARIF has also been validated against the
+2.1.0 JSON schema. Native GitHub Code Scanning ingestion requires an eligible
+repository with the feature enabled; artifact validation alone does not test
+that integration.
 
-Regression tests exercise indicators after the old limits, bounded collection
-with explicit incomplete status, I/O failures, stale/interrupted snapshots,
-snapshot checksums, output path containment, native-install overrides, and
-engine fingerprint portability. The existing demo still fails with exit 1.
-Local validation used Node 26.8.1; the repository's CI matrix covers other
-Node versions and operating systems and was not run remotely for this change.
+### Coverage and inventory comparison
 
-The fingerprint changes with this engine update. Rescan and review the
-baseline migration: newly collected indicators may have existed previously
-but been absent from a truncated older manifest. Scan-time differences from
-the corpus comparison are not a performance claim; old scans ran first and
-new scans could benefit from filesystem caching.
+Compared the scanner at `3cff46b` with the coverage, indicator and native-install
+changes on four local production trees: uptime-kuma, documenso, outline and
+nocodb. These contain 5,853 physical package installations, including repeated
+names and versions. Discovery reported no errors or escaped links, and all
+analyses completed within the new resource budgets.
 
-### Instance matching and selective review
+- 64 installations gained additional endpoints or environment variables beyond
+  the old 20/40 limits. For example, `es-abstract@1.24.2` in uptime-kuma went
+  from 20 to 4,332 literal endpoints. These include documentation URLs, not
+  necessarily runtime network destinations.
+- One capability category changed: `unix-dgram@2.0.7` in outline reports its
+  implicit install command. Its `binding.gyp` and lack of an explicit
+  install/preinstall script confirm npm's `node-gyp rebuild` default.
+- No installation gained or lost a risk flag. This observation does not
+  establish a universal false-positive rate or upgrade-gate precision.
 
-Nine comparison regressions cover upgrades borrowing another version's
-permissions, physical duplicates at the same version, Windows paths,
-relocated packages, pnpm ambiguity, equivalent surfaces, legacy baselines
-and the CLI gate. Fifteen review/approval tests exercise selective writes,
-stale and repeated IDs, concurrent approval locks, incomplete coverage,
-engine changes, Markdown escaping and report-only output. The complete
-local suite passes 244 tests; the bundled escalation demo still exits 1.
+The comparison used Node 26.8.1. Old scans ran first, so filesystem caching
+prevents drawing a performance conclusion from their elapsed times. After
+an engine migration, newly collected indicators may have existed before but
+been absent from older manifests; review that difference before approving.
 
-Matching is conservative when a predecessor cannot be established. This
-stage does not claim a measured false-block rate on real upgrades and does
-not infer pnpm lockfile dependency edges. The 5,853-install scan comparison
-above measures detector changes from the preceding hardening stage.
+### Dependency review coverage
 
-### Packed CLI and npm integration
+Regression tests cover installation matching, physical duplicates, Windows
+paths, pnpm predecessor ambiguity, stale review IDs, concurrent approvals,
+incomplete coverage and Markdown escaping. Origin tests cover npm v2/v3
+hoisting, nested versions, aliases, workspace links, dependency cycles and
+missing or stale lockfile entries. Directory-alias tests protect Windows
+compatibility while retaining the project boundary.
 
-`npm run test:integration` builds local tarballs for the CLI and fixture
-dependencies, installs the scanner outside the fixture project, and performs
-a real `npm ci --ignore-scripts` upgrade offline. It checks that lifecycle
-hooks and a competing project-local `capsurface` binary never execute.
-The upgraded package escalates; approving it leaves a newly added package
-blocked until separately approved. A review against a baseline read with
-`git show` remains unchanged after the proposed baseline is approved.
-An interrupted scan still returns 2 with `--report-only`.
-
-Local validation passed all 244 unit/regression tests plus this integration
-test on Node 26.8.1, and the bundled demo still caught its escalation.
-Both workflow YAML files parsed at this stage. Hosted validation and the
-subsequent composite Action are covered below; the Action removes the earlier
-requirement for an npm-published CLI version.
-
-### Dependency origin, SARIF and hosted PR review
-
-The expanded suite passes 255 regression tests plus the real-npm integration.
-Origin tests cover npm v2/v3, hoisting, nested versions, aliases, optional/peer
-edges, workspace links, cycles, missing/stale origins, JSON line positions,
-directory aliases and paths escaping the project root. SARIF tests verify
-rule references, levels, stable fingerprints, URI containment and CLI exits.
-The integration test also invokes the packed Action helper and checks that
-an approved proposed baseline still leaves the target-branch review visible.
-
-[PR #1](https://github.com/VictorMartins3/capsurface/pull/1) ran the workflow
-on GitHub. The [successful run at 9b50d44](https://github.com/VictorMartins3/capsurface/actions/runs/35680655167)
-passed all 14 jobs: Node 18/20/22/24 on Linux, macOS and Windows, the Node 14
-CLI floor, and the composite Action smoke test. The initial run exposed a
-Windows directory-spelling mismatch between Git and Node; resolving physical
-paths fixed it while retaining the project boundary check.
-
-The hosted Action fixture verifies failure before approval and success after
-approval, while preserving the report against its committed Git baseline.
-Both stages upload artifacts and write job summaries. A downloaded hosted
-artifact retained its hidden snapshot inventory and passed SARIF 2.1.0 JSON
-schema validation using an external validator; no validator dependency was
-added to Capsurface. This is a synthetic dependency upgrade exercised inside
-a real PR, not a live Dependabot or Renovate upgrade.
-
-GitHub returned HTTP 403 for this private repository's Code Scanning API:
-Code Scanning is not enabled. SARIF generation, schema validation and artifact
-upload were verified; native Security-tab ingestion and inline SARIF alerts
-were not. Upload remains opt-in for eligible repositories. No repository
-visibility, security subscription or branch protection was changed.
+The hosted Action scenario uses a synthetic upgrade, not a live Dependabot
+or Renovate update. The predecessor matcher does not use lockfile edges,
+and no false-block rate is claimed for ambiguous real-world upgrades.
 
 ### Earlier corpus measurements
 
@@ -112,12 +73,11 @@ capsurface finds 428 installed packages versus 286 from naively listing
 `node_modules`'s top-level directories. The other 142 are nested, scoped,
 or symlinked installs an earlier version of this tool missed. Scan time
 was 6.4s / 423 MB peak RSS for that tree, about 67 packages/s, measured
-before the profiling work described in CHANGELOG.md; the current figure on
-a 20,039-package corpus is 161 packages/s single threaded. A 118-package
+before later profiling and scanner changes. A 118-package
 install of popular libraries scans in well under a second.
 
 False-positive rate, same 118-package real corpus, before and after the
-fixes in CHANGELOG.md:
+scanner fixes:
 
 | | CRITICAL flags | MEDIUM flags | aggregate risk score |
 |---|---|---|---|
@@ -253,9 +213,8 @@ errors.
 
 Every evidence entry records the rule that produced it, so rules can be
 judged by what they match at scale rather than one finding at a time.
-Eleven were wrong; see CHANGELOG.md for each one and the measured effect of
-fixing it. Two are worth repeating here because they are blind spots rather
-than noise:
+Eleven rules were corrected in that campaign. Two examples were detection
+gaps rather than false positives:
 
 **Lifecycle script commands were never scanned.** The command runs at
 install time but lives in package.json, so walking the package never
@@ -292,8 +251,7 @@ flag requires now; the other 29 are still reported one severity down. Being
 wrong in the highest-severity output is the most expensive place to be
 wrong.
 
-Throughput on that corpus: 161 packages/s single threaded, 37.5s for all
-20,039, after the profiling work in CHANGELOG.md. Every optimisation was
+The historical corpus scan completed in 37.5 seconds after profiling changes. Every optimisation was
 verified by re-scanning the corpus and checking all 20,039 manifests are
 identical to the character.
 
@@ -494,7 +452,7 @@ network access is exactly the CRITICAL combination this tool flags, on the
 first scan of the compromised version, using only what is already
 implemented. It is also a second real-world confirmation, after Shai-Hulud
 V1 to V2, that `preinstall` and not just `postinstall` is where these
-attacks land (see CHANGELOG.md). The same report describes a vector this
+attacks land. The same report describes a vector this
 tool has no coverage for: malicious VS Code and Claude Code hook files
 committed straight into the source tree, executing on folder-open with no
 `npm install` involved. It is a real limitation, not ignored.

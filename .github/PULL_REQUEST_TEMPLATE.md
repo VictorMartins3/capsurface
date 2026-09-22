@@ -1,26 +1,11 @@
-## What this changes
+## Summary
 
-<!-- One or two sentences. -->
+<!-- Explain the problem and the resulting behavior. Keep implementation detail only when it helps review. -->
 
-## Rule changes
+## Validation
 
-Delete this section if no detection rule changed. Otherwise, from
-CONTRIBUTING.md:
+<!-- List the checks you ran and their results. For detection or gating changes, include before/after corpus measurements and limitations. -->
 
-- [ ] `npm test` passes, with a regression test for the case that motivated it
-- [ ] `examples/run-demo.sh` still fails the gate
-- [ ] Measured against real packages, not only fixtures: scanned a corpus with
-      and without the change and diffed the manifests
-- [ ] Ordinary upgrades still pass
+## Compatibility
 
-Numbers, if you have them:
-
-| | before | after |
-|---|---|---|
-| packages gaining the capability | | |
-| packages losing it | | |
-| risk flags changed | | |
-
-Changing a rule changes the rules fingerprint, so every committed baseline
-starts meaning something slightly different. That is expected; note it here
-so it lands in the changelog.
+<!-- Describe CLI, schema, baseline or engine-fingerprint changes and any migration required. Remove this section when not applicable. -->
