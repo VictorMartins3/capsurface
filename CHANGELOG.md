@@ -7,6 +7,8 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- Potential local import paths from supported installation commands, with
+  network/credential locations and unresolved-reference reasons in reviews.
 - File-level correlation of network and credential indicators, with original
   locations and coverage limits in Markdown, JSON and SARIF reviews.
 - Selective approvals bind installed file content and version, with optional
@@ -14,7 +16,6 @@ Notable user-facing changes are recorded here using
   approvals require a new review even when capabilities are unchanged.
 - Filesystem read, write and removal capabilities, with per-operation evidence
   and gating even when general filesystem access was already approved.
-
 - `review` reports dependency changes, blocking reasons and source evidence
   in Markdown, JSON and SARIF.
 - `approve` accepts one dependency installation with a required justification
@@ -31,10 +32,10 @@ Notable user-facing changes are recorded here using
 
 ### Changed
 
-- Manifest schema v7 adds explanatory source context without changing risk
-  scores or capability gates. Older manifests remain readable.
-- Manifest schema v6 includes installed-content integrity. New selective
-  approvals require a complete digest; older baselines remain readable.
+- Manifest schema v8 includes filesystem operation detail, installed-content
+  integrity and explanatory source/installation context. New selective
+  approvals require a complete content digest. Context does not add risk
+  points or blocking rules.
 - Dependency approvals are matched by installation and version. Ambiguous
   predecessors require review instead of combining approved capabilities.
 - Comparisons distinguish install-time scripts from build-only scripts and
@@ -46,7 +47,6 @@ Notable user-facing changes are recorded here using
   matching. Measurements and limitations are in [Verification](docs/VERIFICATION.md).
 - The engine fingerprint and manifest schema have changed. Existing baselines
   remain readable; rescan and review differences before accepting a new one.
-  Manifest schema v5 adds filesystem operation detail to coverage metadata.
   Scan commands exit with code 2 for incomplete coverage, and approval commands reject it. See
   [Reviewing dependency changes](docs/REVIEW.md).
 

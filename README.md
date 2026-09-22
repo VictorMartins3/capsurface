@@ -170,7 +170,7 @@ Interrupted scans and concurrent writes fail rather than producing an
 apparently clean inventory. After a crashed process leaves the directory
 locked, rerun with a fresh output directory.
 
-Manifest schema v7 includes `coverage`: files and bytes read, skipped files,
+Manifest schema v8 includes `coverage`: files and bytes read, skipped files,
 and I/O errors. Endpoints and env vars are collected beyond the report's
 evidence samples. A resource limit or read failure marks analysis incomplete;
 `scan`/`scan-tree` exit 2, and `baseline`/`allowlist` refuse to approve it.
@@ -185,6 +185,9 @@ see [content scope and renewal](docs/REVIEW.md#content-and-expiration).
 `sourceContext` identifies files containing both network and credential
 indicators, with separate locations. [File correlation](docs/REVIEW.md#file-correlation)
 helps explain findings without claiming that credential data is transmitted.
+
+`installContext` shows [potential paths from installation scripts](docs/REVIEW.md#installation-script-paths)
+through literal local imports, with unresolved references and analysis limits.
 
 Establish a baseline, once, after human review:
 

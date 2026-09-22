@@ -113,6 +113,33 @@ A URL literal alone does not establish network capability. Tests also retain
 the existing package-level gates and risk scores. Measurements used Node
 26.8.1; no performance or false-positive-rate claim is made from this run.
 
+### Installation context comparison
+
+Compared `398245d` with literal installation import graphs on the same 5,853
+installed packages. Existing capability records, risk scores and flags were
+unchanged. Source scans and content hashes completed without errors, and no
+graph exhausted its resource budget.
+
+The corpus contains 40 non-inert installation hook entries across repeated
+package installations. Entry files were recognized for 26 hooks; 14 commands
+were explicitly unsupported. Eight hooks had potential paths to network or
+credential indicators. Entry recognition does not mean that every import was
+resolved: external dependencies and dynamic references remain visible as
+unresolved. The existing synthetic `abort-controller` fixture contributes one
+hook and is not a registry malware sample.
+
+Examples include seven reached files in each `aws-crt` installation and eleven
+in `oracledb`. `@swc/core` records unresolved platform-package references;
+compound shell commands and native builds are not interpreted. These figures
+measure the supported syntax on this corpus, not runtime execution coverage.
+
+Regression tests cover cycles, file boundaries, symlinks, ESM versus CommonJS
+file lookup, capped samples and depth limits. A long-comment dynamic import
+exceeded a three-second timeout with the initial matcher; bounded recognition
+completed the same 50,000-character case in about 40 ms locally. The permanent
+regression uses 100,000 characters and a five-second CLI timeout. This isolated
+case is not a general performance benchmark. Measurements used Node 26.8.1.
+
 ### Dependency review coverage
 
 Regression tests cover installation matching, physical duplicates, Windows
