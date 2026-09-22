@@ -38,7 +38,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0 acorn-typescript@1.4.13
       - run: npm run test:deep
 
   # The test runner needs Node 18; the shipped CLI claims Node 14. Prove it.
@@ -64,9 +64,18 @@ jobs:
 
       - name: Check optional AST mode on Node 14
         run: |
-          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0 acorn-typescript@1.4.13
           node bin/capsurface.js scan examples/malicious-pkg-v2 --deep --out /tmp/deep.json
           node -e "if (require('/tmp/deep.json').installContext.analysis !== 'ast-import-graph') process.exit(1)"
+          node <<'JS'
+          const fs = require('fs');
+          const path = require('path');
+          const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'capsurface-types-'));
+          fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"typed-smoke"}');
+          fs.writeFileSync(path.join(dir, 'index.ts'), "const load = require as NodeRequire; load('child_process');");
+          const result = require('./lib/scanner').scanPackageDir(dir, { deep: true });
+          if (!result.astCoverage.complete || !result.capabilities.exec.present) process.exit(1);
+          JS
 
   review-action:
     name: dependency review action

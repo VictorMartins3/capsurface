@@ -195,16 +195,19 @@ Install the supported parser alongside your trusted capsurface installation:
 
 ```bash
 # From a capsurface checkout; omit --deep to keep the dependency-free scanner.
-npm install --no-save --package-lock=false --ignore-scripts acorn@8.15.0
+npm install --no-save --package-lock=false --ignore-scripts acorn@8.15.0 acorn-typescript@1.4.13
 node bin/capsurface.js scan /path/to/package --deep --out /tmp/package.json
 node bin/capsurface.js scan-tree /path/to/node_modules --deep --out /tmp/manifests
 ```
 
-For a packaged CLI, install `capsurface` and `acorn@8.15.0` in the same trusted
-tool environment. Acorn is an [optional peer dependency](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/#peerdependenciesmeta),
-not installed automatically. Scans never download it. Missing or incompatible
-parser versions fail before writing a scan inventory. The parser is resolved
-from capsurface's installation, not by searching the scanned package.
+For a packaged CLI, install `capsurface`, `acorn@8.15.0` and, for typed source,
+`acorn-typescript@1.4.13` in the same trusted tool environment. Both parsers are
+[optional peer dependencies](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/#peerdependenciesmeta),
+not installed automatically. Scans never download them. Missing Acorn or an
+incompatible installed parser version fails before writing an inventory.
+Missing acorn-typescript leaves typed files explicitly unavailable and makes
+a deep scan incomplete; JavaScript-only deep scans still work with Acorn alone.
+Parsers are resolved from capsurface's installation, not from the scanned package.
 
 This mode resolves immutable `const` aliases of `require`, `createRequire`
 from `module`/`node:module`, named and namespace imports, escaped string literals,
@@ -215,17 +218,46 @@ hoisted `var` declarations shadow loaders. Reassigned bindings are not trusted.
 It also visits actual calls inside template interpolation without treating
 quoted examples as code.
 
-ECMAScript 2022 is the syntax ceiling. `.cjs` and `.mjs` select their respective
-source modes; other JavaScript files use the nearest package.json `type`.
-Node's syntax-based module detection is not emulated. TypeScript, JSX, parse
-errors, dynamic scopes (`eval`/`with`), observed module namespace mutations or
-escapes into unknown calls, and resource limits leave explicit unavailable
-references. No parser plugins, project configuration or package code are loaded.
+JavaScript uses ECMAScript 2022 syntax. The optional
+[acorn-typescript extension](https://github.com/TyrealHu/acorn-typescript)
+adds TypeScript, declaration files, JSX and TSX. Both scan modes discover
+`.mts` and `.cts`, including their declaration-file variants, in addition to
+`.js`, `.cjs`, `.mjs`, `.ts`, `.tsx` and `.jsx`.
+
+Type annotations, interfaces, type aliases, `import type` and `export type`
+do not acquire modules. Declaration-file static imports are also erased.
+Value imports remain acquisition candidates even when their named specifiers
+are all marked `type`: TypeScript's
+[verbatimModuleSyntax](https://www.typescriptlang.org/tsconfig/verbatimModuleSyntax.html)
+can retain these imports for side effects. No type checker or compiler options
+are consulted to guess additional import elision.
+
+The AST pass follows typed immutable aliases, `as`/`satisfies` expressions,
+non-null assertions, generic calls and supported external `import = require()`
+declarations. Constructor parameter properties participate in lexical
+shadowing. JSX expression containers and spread attributes are traversed;
+JSX text and quoted attributes do not become AST imports. The underlying
+source-text scanner remains additive and can still report its own false positives.
+
+Non-ambient enums, namespaces and internal import-equals aliases are explicitly
+unsupported rather than assigned guessed runtime semantics. The pinned parser
+also rejects some valid TypeScript, including angle-bracket assertions and
+certain interface/value declaration merges. Malformed files, dynamic scopes,
+module-namespace mutations/escapes and resource limits still make deep analysis
+unavailable. Declaration files are parsed, not skipped wholesale.
+
+`.cjs`/`.cts` and `.mjs`/`.mts` determine CommonJS and ESM loader assumptions;
+other files use the nearest package.json `type`. Typed syntax accepts module
+declarations without assuming a particular emitted build. The scanner does
+not read tsconfig/Babel configuration or emulate Node's syntax-based module
+detection. Only the pinned parser extension is loaded; no project plugins,
+compiler transforms or dependency code execute.
+
 Each file has a 1 MiB source budget, 100,000-token/node/evaluation budgets and
 32 levels of static value resolution, in addition to the graph's existing limits.
 
 Deep context has `installContext.schemaVersion: 2`, `analysis: ast-import-graph`
-and `ast` metadata with the parser version and processed/unavailable file counts.
+and `ast` metadata with parser identities and processed/unavailable file counts.
 Manifest schema v9 also records `analysisProfile` and package-wide `astCoverage`.
 Reviews retain this context in Markdown, JSON and SARIF. A parsed file does **not** mean every import was resolved:
 mutable aliases, wrapper functions, values passed across calls, object-held
@@ -257,7 +289,8 @@ unsupported aliases and dynamic values remain analysis limitations.
 
 This is a deliberate change from the earlier experimental context-only mode:
 rescan both sides of a review before interpreting new capabilities as package
-changes. TypeScript/JSX-heavy trees may remain unsuitable for strict deep scans.
+changes. Some production trees remain unsuitable for strict deep scans; see the
+[measured coverage and remaining limitations](VERIFICATION.md).
 The composite Action uses basic scanning and cannot satisfy a deep baseline;
 use the CLI in CI with an explicitly provisioned trusted parser environment.
 No parser is installed or fetched during a scan.

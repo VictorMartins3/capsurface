@@ -816,3 +816,19 @@ describe('a module name we could not resolve', () => {
     assert.equal(scan('__webpack_require__(123);\n').capabilities.unresolvedRequire.present, false);
   });
 });
+
+
+test('scans modern TypeScript extensions without requiring an AST parser', (t) => {
+  const root = mkTmpDir('typescript-extensions');
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dir = writePackage(root, 'pkg', { name: 'typed' }, {
+    'index.cts': "const cp = require('child_process');",
+    'index.mts': "import https from 'https';",
+    'index.d.mts': "import type { Stats } from 'fs';",
+  });
+  const manifest = scanPackageDir(dir);
+  assert.equal(manifest.sourceFilesScanned, 3);
+  assert.equal(manifest.capabilities.exec.present, true);
+  assert.equal(manifest.capabilities.network.present, true);
+  assert.equal(manifest.capabilities.filesystem.present, false);
+});

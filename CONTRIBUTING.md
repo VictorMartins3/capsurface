@@ -42,7 +42,7 @@ Where to change what:
 
 `lib/rules-version.js` hashes the detection rules and the scanner,
 normalizer, discovery, diff, comparison, filesystem-operation, content-integrity
-approval-policy, source-context, install-context AST import and AST capability implementations (with line endings normalized).
+approval-policy, source-context, install-context AST import, typed-parser and AST capability implementations (with line endings normalized).
 Changing these changes that hash, and `check` warns that existing
 baselines were written by different rules. That is intentional: edit the engine and
 every committed baseline means something slightly different, which a security
@@ -64,7 +64,8 @@ Two decisions shape everything:
 ## Setup
 
 No install step. The default scanner has zero dependencies. Experimental AST analysis
-uses an optional, exact-version Acorn peer; no parser is loaded in normal scans.
+uses optional, exact-version Acorn and acorn-typescript peers; no parser is
+loaded in normal scans.
 
 ```bash
 git clone <this repo>
@@ -107,12 +108,14 @@ npm test                        # needs Node >=18 for node:test; the CLI itself 
   reason either.
 
 The optional AST mode uses Acorn instead of implementing or vendoring a JavaScript
-parser. It has no transitive dependencies and is only loaded for `--deep`.
-The supported parser version is pinned in both the peer declaration and loader;
-updates need AST regressions and corpus measurements. To work on that mode:
+parser. TypeScript/JSX use the acorn-typescript extension, whose only peer is
+Acorn; neither adds mandatory dependencies to the default scanner. The extension
+preserves source locations without compilation, source maps or project plugins.
+Both versions are pinned in peer declarations and loaders; updates need AST
+regressions and corpus measurements. To work on that mode:
 
 ```bash
-npm install --no-save --package-lock=false --ignore-scripts acorn@8.15.0
+npm install --no-save --package-lock=false --ignore-scripts acorn@8.15.0 acorn-typescript@1.4.13
 npm run test:deep
 ```
 

@@ -192,6 +192,8 @@ An experimental [`scan --deep` mode](docs/REVIEW.md#experimental-ast-import-anal
 uses an optional parser to detect module capabilities behind immutable loader
 aliases and static templates. It scans all source files, fails on unavailable AST
 analysis, and prevents silently downgrading a deep baseline to a basic scan.
+Optional `acorn-typescript@1.4.13` adds typed source and JSX support. Both modes
+also scan `.mts` and `.cts` files; unsupported TypeScript remains explicit.
 
 Establish a baseline, once, after human review:
 

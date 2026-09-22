@@ -75,7 +75,7 @@ test('supports multiline ESM declarations and escaped specifiers without a Commo
 
 test('unsupported syntax and parser resource exhaustion are explicit', () => {
   assert.equal(analyze('const =').references[0].reason, 'ast-parse-error');
-  assert.equal(analyze('const x: string = "a"', 'script', 'a.ts').references[0].reason, 'ast-unsupported-syntax');
+  assert.equal(astImports({ ...parser, typed: null }, 'const x: string = "a"', 'a.ts', 'script').references[0].reason, 'ast-typescript-parser-unavailable');
   assert.equal(analyze(' '.repeat(1024 * 1024 + 1)).references[0].reason, 'ast-source-limit');
   assert.equal(analyze('('.repeat(20000) + '0' + ')'.repeat(20000)).references[0].reason, 'ast-resource-limit');
   assert.equal(analyze('0;'.repeat(60000)).references[0].reason, 'ast-resource-limit');
@@ -96,7 +96,7 @@ test('deep scan adds review context while preserving capability evidence and gat
   assert.equal(deep.installContext.hooks[0].reachableFiles, 2);
   assert.deepEqual(deep.capabilities, normal.capabilities);
   assert.equal(diffManifests(normal, deep).escalated, false);
-  assert.deepEqual(deep.installContext.ast, { parser: 'acorn@8.15.0', ecmaVersion: 2022, filesParsed: 2, filesFailed: 0 });
+  assert.deepEqual(deep.installContext.ast, { parser: parser.identity, ecmaVersion: 2022, filesParsed: 2, filesFailed: 0 });
   const review = buildReview(new Map(), new Map([['pkg', [deep]]])).report;
   assert.match(renderMarkdown(review), /experimental AST analysis/);
   assert.deepEqual(renderSarif(review).runs[0].results[0].properties.installContext, deep.installContext);
