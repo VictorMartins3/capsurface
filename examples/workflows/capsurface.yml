@@ -28,7 +28,7 @@ jobs:
         run: npm ci --ignore-scripts
       # Pin the Action to a reviewed commit, including its scanner. No npm
       # publication is needed and project-local binaries cannot shadow it.
-      - uses: VictorMartins3/capsurface@ba0c4dc38457f63cc91d3281824e91966c8e6623
+      - uses: VictorMartins3/capsurface@9b23f8a4135540ebfc5e78fefa18f4726f5e0b9f
         with:
           # Optional AST analysis; provisions pinned parsers with scripts disabled.
           deep: 'false'
