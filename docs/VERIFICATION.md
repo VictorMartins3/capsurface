@@ -29,6 +29,20 @@ and URI containment. Generated SARIF has also been validated against the
 repository with the feature enabled; artifact validation alone does not test
 that integration.
 
+### Deep review Action
+
+The local Action-wrapper regression starts from a reviewed deep baseline,
+changes a typed dependency from direct process launch to shell execution,
+checks source evidence in Markdown/JSON/SARIF, approves that installation and
+verifies the target-branch report still exposes the change. It also checks
+profile downgrades, incomplete AST coverage and invalid Action input.
+
+All 334 default tests, 36 optional-parser tests, offline npm integration and
+the escalation demo passed locally. Hosted Action CI runs both basic and deep
+reviews, including a report-only deep scan with invalid syntax. The opt-in
+parser installation is workflow setup; local scan and review commands stay
+offline. This changes Action orchestration, not detection rules.
+
 ### Process launch modes
 
 Compared basic and deep scans at `feda649` with engine `7449c3bcf6de` on the

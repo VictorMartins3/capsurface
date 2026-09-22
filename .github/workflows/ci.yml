@@ -78,13 +78,22 @@ jobs:
           JS
 
   review-action:
-    name: dependency review action
+    name: dependency review action (deep=${{ matrix.deep }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        deep: ['false', 'true']
+    env:
+      CAPSURFACE_DEEP: ${{ matrix.deep }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Install parsers for the deep baseline fixture
+        if: matrix.deep == 'true'
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0 acorn-typescript@1.4.13
       - name: Prepare a reviewed dependency upgrade
         id: fixture
         run: node test/action-fixture.js "$RUNNER_TEMP/review-fixture"
@@ -93,6 +102,7 @@ jobs:
         continue-on-error: true
         uses: ./
         with:
+          deep: ${{ matrix.deep }}
           project-directory: ${{ runner.temp }}/review-fixture
           base-ref: ${{ steps.fixture.outputs.base-sha }}
       - name: Assert the gate and approve the fixture
@@ -104,12 +114,32 @@ jobs:
         id: approved
         uses: ./
         with:
+          deep: ${{ matrix.deep }}
           project-directory: ${{ runner.temp }}/review-fixture
           base-ref: ${{ steps.fixture.outputs.base-sha }}
           upload-artifact: 'true'
-          artifact-name: capsurface-review-after-approval
+          artifact-name: capsurface-review-after-approval-deep-${{ matrix.deep }}
       - name: Assert approvals remain visible
         env:
           GATE: ${{ steps.approved.outputs.would-fail }}
           REVIEW_JSON: ${{ steps.approved.outputs.json }}
         run: node test/action-fixture.js "$RUNNER_TEMP/review-fixture" verify
+      - name: Prepare incomplete deep coverage
+        if: matrix.deep == 'true'
+        run: node test/action-fixture.js "$RUNNER_TEMP/review-fixture" incomplete
+      - name: Verify report-only rejects incomplete deep coverage
+        if: matrix.deep == 'true'
+        id: incomplete
+        continue-on-error: true
+        uses: ./
+        with:
+          deep: 'true'
+          project-directory: ${{ runner.temp }}/review-fixture
+          base-ref: ${{ steps.fixture.outputs.base-sha }}
+          report-only: 'true'
+      - name: Assert incomplete coverage cannot pass
+        if: matrix.deep == 'true'
+        env:
+          OUTCOME: ${{ steps.incomplete.outcome }}
+          REVIEW_JSON: ${{ steps.incomplete.outputs.json }}
+        run: node test/action-fixture.js "$RUNNER_TEMP/review-fixture" verify-incomplete

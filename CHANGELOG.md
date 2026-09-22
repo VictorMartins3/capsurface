@@ -7,6 +7,9 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- Opt-in `deep` analysis in the review Action, with pinned parser setup and
+  explicit coverage failures, including in report-only mode.
+
 - Deep scans distinguish shell execution, direct process launches and unresolved
   launch modes in `child_process` calls. New detail requires review even when
   general process execution is already approved, with original call-site

@@ -16,6 +16,9 @@ inputs:
   fail-on-new:
     description: Require approval for newly installed packages.
     default: 'true'
+  deep:
+    description: Enable experimental AST analysis. Installs pinned optional parsers in the Action directory with scripts disabled.
+    default: 'false'
   report-only:
     description: Report capability changes without failing the gate. Invalid scans still fail.
     default: 'false'
@@ -44,6 +47,11 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: Install optional AST parsers
+      if: inputs.deep == 'true'
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0 acorn-typescript@1.4.13
     - name: Scan and prepare dependency review
       id: review
       shell: bash
@@ -52,6 +60,7 @@ runs:
         CAPSURFACE_BASELINE: ${{ inputs.baseline }}
         CAPSURFACE_BASE_REF: ${{ inputs.base-ref }}
         CAPSURFACE_LOCKFILE: ${{ inputs.lockfile }}
+        CAPSURFACE_DEEP: ${{ inputs.deep }}
         CAPSURFACE_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
       run: node "$GITHUB_ACTION_PATH/bin/action-review.js"
     - name: Retain dependency review

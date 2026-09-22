@@ -7,6 +7,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const root = path.resolve(process.argv[2]);
 const repo = path.join(__dirname, '..');
+const deep = process.env.CAPSURFACE_DEEP === 'true';
 const cli = path.join(repo, 'bin', 'capsurface.js');
 fs.mkdirSync(root, { recursive: true });
 const target = path.join(root, 'node_modules', 'handy-color-utils');
@@ -15,6 +16,13 @@ const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8'
 function install(version) {
   fs.rmSync(target, { recursive: true, force: true });
   fs.cpSync(path.join(repo, 'examples', `malicious-pkg-v${version}`), target, { recursive: true });
+  if (deep) {
+    fs.rmSync(target, { recursive: true, force: true });
+    fs.mkdirSync(target, { recursive: true });
+    fs.writeFileSync(path.join(target, 'package.json'), JSON.stringify({ name: 'handy-color-utils', version: `${version}.0.0` }));
+    fs.writeFileSync(path.join(target, 'index.ts'), "const load = require as NodeRequire;\nload('child_process')." +
+      (version === 1 ? "spawn('node');" : "exec('echo fixture');"));
+  }
   const pkg = JSON.parse(fs.readFileSync(path.join(target, 'package.json')));
   fs.writeFileSync(path.join(root, 'package-lock.json'), JSON.stringify({ name: 'action-fixture', lockfileVersion: 3,
     packages: { '': { name: 'action-fixture', dependencies: { [pkg.name]: pkg.version } },
@@ -22,7 +30,7 @@ function install(version) {
 }
 function prepare() {
   install(1);
-  run('scan-tree', 'node_modules', '--out', 'baseline-manifests');
+  run('scan-tree', 'node_modules', '--out', 'baseline-manifests', ...(deep ? ['--deep'] : []));
   run('baseline', 'baseline-manifests', '--out', 'capsurface.lock.json');
   git('init', '--quiet');
   git('add', 'capsurface.lock.json', 'package-lock.json');
@@ -39,6 +47,11 @@ function reviewedUpgrade() {
   assert.equal(report.wouldFail, true, 'target-baseline review must retain the escalation');
   assert.equal(report.entries.length, 1);
   assert.equal(report.entries[0].provenance.status, 'resolved');
+  if (deep) {
+    assert.equal(report.entries[0].analysisProfile, 'source-ast-v1');
+    assert.equal(report.entries[0].astCoverage.complete, true);
+    assert.ok(report.entries[0].evidence.some((item) => item.category === 'execShell' && item.line === 2));
+  }
   return report.entries[0];
 }
 
@@ -54,10 +67,21 @@ switch (process.argv[3] || 'prepare') {
       '--reason', 'Reviewed the test fixture');
     break;
   }
+  case 'incomplete':
+    assert.ok(deep);
+    fs.writeFileSync(path.join(target, 'index.ts'), 'const =');
+    break;
+  case 'verify-incomplete': {
+    assert.equal(process.env.OUTCOME, 'failure', 'report-only must not accept incomplete deep coverage');
+    const report = JSON.parse(fs.readFileSync(process.env.REVIEW_JSON, 'utf8'));
+    assert.equal(report.entries[0].astCoverage.complete, false);
+    assert.equal(report.entries[0].approvable, false);
+    break;
+  }
   case 'verify':
     assert.equal(process.env.GATE, 'false', 'the approved upgrade must pass');
     reviewedUpgrade();
     break;
   default:
-    throw new Error('Expected prepare, approve or verify');
+    throw new Error('Unknown fixture command');
 }
