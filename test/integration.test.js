@@ -114,6 +114,16 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   const sarif = JSON.parse(fs.readFileSync(outputs.sarif));
   assert.equal(sarif.runs[0].results.length, 2);
   assert.equal(sarif.runs[0].results[0].locations[0].physicalLocation.artifactLocation.uri, 'package-lock.json');
+  // A payload outside source detection still invalidates a content approval.
+  fs.writeFileSync(path.join(project, 'node_modules', 'integration-dep', 'payload.bin'), Buffer.from([0, 255, 1]));
+  scan('scan-tree', 'node_modules', '--out', 'manifests');
+  gate(check, 1);
+  const contentReview = JSON.parse(gate(['review', 'manifests', '--baseline', 'capsurface.lock.json', '--json'], 1));
+  assert.equal(contentReview.entries.length, 1);
+  assert.ok(contentReview.entries[0].changes.some((change) => change.type === 'approval-content-changed'));
+  scan('approve', 'manifests', '--baseline', 'capsurface.lock.json', '--id', contentReview.entries[0].id,
+    '--reason', 'Reviewed the added binary asset', '--expires', '2099-01-01T00:00:00Z');
+  gate(check, 0);
   const inventory = path.join(project, 'manifests', '.capsurface-snapshot');
   assert.equal(JSON.parse(fs.readFileSync(inventory)).complete, true);
   fs.writeFileSync(inventory, JSON.stringify({ schemaVersion: 1, complete: false }));

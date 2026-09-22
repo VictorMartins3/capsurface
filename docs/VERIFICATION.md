@@ -73,6 +73,23 @@ removal APIs; they do not establish malicious intent or a corpus-wide
 false-positive rate. The comparison used Node 26.8.1 with old scans first,
 so elapsed times are not a controlled performance benchmark.
 
+### Content approval comparison
+
+Compared the scanner at `1a09c40` with installed-content hashing on the same
+5,853 installations. All content digests completed, covering 293,487 files
+and 3,318,028,034 bytes across the four trees. Existing capabilities, risk
+scores and risk flags were unchanged. Discovery reported no errors or escaped
+links, and no source analysis was incomplete. These inputs contain repeated
+packages; the totals are not counts of unique published files or packages.
+
+A before/after regression changes only a binary asset: the previous review ID
+remains valid, while the new ID changes. The offline npm integration also
+checks that a new binary invalidates selective approval and requires renewal.
+Tests cover expiry boundaries, malformed timestamps, installation isolation,
+missing digests, symlinks and the content byte budget. The corpus comparison
+used Node 26.8.1 with old scans first; it is not a controlled speed benchmark
+or a claim that every published package supports content approval.
+
 ### Dependency review coverage
 
 Regression tests cover installation matching, physical duplicates, Windows

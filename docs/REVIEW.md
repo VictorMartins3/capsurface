@@ -37,7 +37,7 @@ Review the baseline diff and commit it with the dependency update. Approval
 accepts all observed changes for the selected installation, not the entire
 tree. Approving individual fields within one package is not supported.
 The baseline records the ID, installation, version, engine fingerprint,
-reason and approval time. Unrelated package approvals are preserved.
+content digest, reason and approval time. Unrelated package approvals are preserved.
 
 An ID binds the observed manifest, its candidate baselines and engine
 fingerprint. Rescanning identical input keeps the ID despite timestamp
@@ -45,10 +45,56 @@ changes. If the observed manifest or its candidate baselines change, rerun
 review; the previous ID is rejected. IDs cannot be approved twice. A lock
 and atomic replacement protect concurrent approval writes.
 
-Incomplete scans and manifests from a different engine cannot be approved.
-Fix coverage errors or rescan first. Review IDs fingerprint manifests, not
-every byte in a package: approval is a capability review, not an integrity
-attestation or a guarantee that code is safe. It never runs scripts.
+Incomplete scans, incomplete content digests and manifests from a different
+engine cannot be approved. Fix coverage or integrity errors and rescan first.
+Approval does not certify that code is safe and never runs scripts.
+
+### Content and expiration
+
+Selective approval binds the installation path, version and SHA-256 digest
+of installed package files. A change to any of those requires another review,
+even when detected capabilities stay the same. Review IDs include the digest,
+so changing a data file or binary also invalidates an outstanding review ID.
+Run a fresh scan after changing installed files; checks compare saved manifests,
+not the live filesystem.
+
+Optionally set an expiration using an explicit UTC timestamp:
+
+```bash
+capsurface approve .capsurface/manifests --baseline capsurface.lock.json \
+  --id <review-id> --reason "Temporary exception during migration" \
+  --expires 2030-01-15T00:00:00Z
+```
+
+The timestamp must be in the future. At or after that time, `check` and
+`review` require approval again, including for unchanged packages. Renewal
+uses the new review ID and a justification; audit history is retained.
+Without `--expires`, the approval has no time limit. Expiry uses the machine's
+UTC clock; use a correctly configured clock in CI.
+
+Manifest schema v6 records `contentIntegrity`. Its `package-files-v1` scope
+hashes relative file paths and exact bytes, including `package.json`, binary
+assets, documentation and non-source files. Directory traversal is sorted;
+timestamps, permissions and empty directories are excluded. Nested
+`node_modules` and `.git` directories are excluded. Dependencies are reviewed
+as separate installations. This is an installed-content digest, not the
+registry tarball's integrity or a publisher signature.
+
+Hashing streams files with a 1 GiB package budget, 100,000 directory entries
+and a maximum directory depth of 128. Unreadable files, package-internal
+symlinks, other non-regular files and exceeded budgets produce incomplete
+content integrity and prevent selective approval. The package root may itself
+be a resolved workspace link. The scan does not provide a filesystem snapshot:
+scan a stable installation, with outputs outside the package being scanned.
+
+General baselines created with `baseline`, including older baselines and
+older selective approvals, retain capability-comparison behavior. They are
+not silently converted into content pins. New selective approvals store an
+enforced policy with the baseline manifest and an audit record alongside it.
+Different policies cannot be combined as equivalent capability surfaces.
+Use the current CLI/Action throughout CI; older releases do not enforce these
+policies. Regenerating the entire baseline replaces selective policies, so
+use `approve` for subsequent reviews and inspect baseline changes in the PR.
 
 ## Multiple versions
 
