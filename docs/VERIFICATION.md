@@ -69,11 +69,40 @@ An interrupted scan still returns 2 with `--report-only`.
 
 Local validation passed all 244 unit/regression tests plus this integration
 test on Node 26.8.1, and the bundled demo still caught its escalation.
-Both workflow YAML files parse. The integration test is wired into the
-existing Node/OS CI matrix, but hosted GitHub execution, artifact upload and
-PR-summary rendering have not been validated remotely. The adoption example
-requires an npm lockfile, a committed initial baseline and a published CLI
-version containing the new commands.
+Both workflow YAML files parsed at this stage. Hosted validation and the
+subsequent composite Action are covered below; the Action removes the earlier
+requirement for an npm-published CLI version.
+
+### Dependency origin, SARIF and hosted PR review
+
+The expanded suite passes 255 regression tests plus the real-npm integration.
+Origin tests cover npm v2/v3, hoisting, nested versions, aliases, optional/peer
+edges, workspace links, cycles, missing/stale origins, JSON line positions,
+directory aliases and paths escaping the project root. SARIF tests verify
+rule references, levels, stable fingerprints, URI containment and CLI exits.
+The integration test also invokes the packed Action helper and checks that
+an approved proposed baseline still leaves the target-branch review visible.
+
+[PR #1](https://github.com/VictorMartins3/capsurface/pull/1) ran the workflow
+on GitHub. The [successful run at 9b50d44](https://github.com/VictorMartins3/capsurface/actions/runs/35680655167)
+passed all 14 jobs: Node 18/20/22/24 on Linux, macOS and Windows, the Node 14
+CLI floor, and the composite Action smoke test. The initial run exposed a
+Windows directory-spelling mismatch between Git and Node; resolving physical
+paths fixed it while retaining the project boundary check.
+
+The hosted Action fixture verifies failure before approval and success after
+approval, while preserving the report against its committed Git baseline.
+Both stages upload artifacts and write job summaries. A downloaded hosted
+artifact retained its hidden snapshot inventory and passed SARIF 2.1.0 JSON
+schema validation using an external validator; no validator dependency was
+added to Capsurface. This is a synthetic dependency upgrade exercised inside
+a real PR, not a live Dependabot or Renovate upgrade.
+
+GitHub returned HTTP 403 for this private repository's Code Scanning API:
+Code Scanning is not enabled. SARIF generation, schema validation and artifact
+upload were verified; native Security-tab ingestion and inline SARIF alerts
+were not. Upload remains opt-in for eligible repositories. No repository
+visibility, security subscription or branch protection was changed.
 
 ### Earlier corpus measurements
 

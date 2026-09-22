@@ -234,6 +234,7 @@ capsurface approve .capsurface/manifests --baseline capsurface.lock.json \
 
 Approval updates only that installation and records the reason in the
 baseline. A changed scan or candidate baseline invalidates its review ID.
+
 For dependency origins and GitHub Code Scanning output:
 
 ```bash
