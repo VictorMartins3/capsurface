@@ -12,6 +12,16 @@ function writeJson(file, obj) {
   fs.writeFileSync(file, JSON.stringify(obj, null, 2));
 }
 
+test('top-level help succeeds while unknown commands remain usage errors', () => {
+  for (const args of [[], ['--help'], ['-h']]) {
+    const result = runCli(args);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Usage:/);
+    assert.match(result.stdout, /capsurface scan-lock/);
+  }
+  assert.equal(runCli(['unknown-command']).status, 2);
+});
+
 describe('end-to-end scan / baseline / check pipeline', () => {
   test('catches the bundled Shai-Hulud-style escalation fixture (examples/malicious-pkg-v1 -> v2)', () => {
     const tmp = mkTmpDir('demo');

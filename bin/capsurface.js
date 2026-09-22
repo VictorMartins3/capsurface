@@ -593,7 +593,7 @@ Usage:
   capsurface diff <baseline-manifest.json> <current-manifest.json>
   capsurface allowlist <manifests-dir> [--format npm|pnpm|json] [--names] [--out <file>]
 `);
-      process.exit(cmd ? 2 : 0);
+      process.exit(!cmd || cmd === '--help' || cmd === '-h' ? 0 : 2);
   }
 }
 

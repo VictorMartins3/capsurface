@@ -87,6 +87,8 @@ Notable user-facing changes are recorded here using
 
 ### Fixed
 
+- Top-level `--help` and `-h` exit successfully; unknown commands still exit 2.
+
 - The npm package includes its linked usage, verification, contribution and
   security documentation. Pre-release setup uses a reviewed source checkout
   instead of an unpublished registry package.

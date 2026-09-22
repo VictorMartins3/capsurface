@@ -52,6 +52,7 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   npm(['install', '--prefix', tool, '--ignore-scripts', '--package-lock=false', scannerTar], tmp);
   const cli = path.join(tool, 'node_modules', 'capsurface', 'bin', 'capsurface.js');
   assert.ok(fs.existsSync(cli));
+  assert.match(run(process.execPath, [cli, '--help'], tmp), /Usage:/);
   const installed = path.dirname(path.dirname(cli));
   const requiredDocs = ['README.md', 'LICENSE', 'CHANGELOG.md', 'CONTRIBUTING.md',
     'SECURITY.md', 'docs/REVIEW.md', 'docs/VERIFICATION.md', 'docs/RELEASING.md',
