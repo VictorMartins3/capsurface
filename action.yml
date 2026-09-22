@@ -1,5 +1,8 @@
 name: Capsurface dependency review
 description: Review installed dependency capabilities against the PR target and proposed baselines.
+branding:
+  icon: shield
+  color: blue
 inputs:
   project-directory:
     description: Project directory containing node_modules and the npm lockfile.
