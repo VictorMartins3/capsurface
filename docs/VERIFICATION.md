@@ -29,6 +29,32 @@ and URI containment. Generated SARIF has also been validated against the
 repository with the feature enabled; artifact validation alone does not test
 that integration.
 
+### Published tarball scans
+
+Engine `9cd122d4a324` was checked against 28 published npm tarballs selected
+from a production lockfile. The scanner verified each archive against the
+lockfile's strong SRI digest before extraction. A separate system-tar extraction
+of those validated archives produced identical basic manifests, including
+content hashes, for all 28 packages and 2,488 source files. The inputs totaled
+13,389,756 compressed bytes and 76,046,848 expanded tar bytes. Source coverage
+and content hashing completed without errors; no package scripts ran.
+
+All 356 default tests, 43 deep tests, offline integration and the escalation
+demo passed locally. Regressions cover checksum and integrity failures, traversal,
+links, Windows device names, case and Unicode collisions, malformed PAX records,
+truncated archives, conflicting duplicate entries and resource limits. Identical
+file duplicates are accepted: two real proxy-agent archives contain equivalent
+paths with identical contents. CLI tests exercise review, selective approval,
+incomplete inventories and rejection of comparisons between installed-package
+and published-tarball baselines.
+
+This is extraction and scan parity on a limited sample, not an independent
+security audit, malware-accuracy benchmark or performance claim. `scan-lock`
+requires local archives and npm lockfile v2/v3 registry entries; workspace links,
+Git/local dependencies and bundled dependency trees are unsupported and fail
+closed. Deep analysis retains its documented coverage limits. Generated archives
+and measurement reports are kept outside the repository.
+
 ### Environment and network detail
 
 Compared `2ed4a4a` with engine `57763e87d756` on 5,853 physical installations
