@@ -1,7 +1,7 @@
 {
   "name": "capsurface",
   "version": "0.1.0",
-  "description": "Capability-aware supply-chain scanner: computes a dependency's declared capability surface (filesystem, network, exec, env, lifecycle scripts) and flags escalation across versions in CI.",
+  "description": "Offline dependency capability scanner: review changes in filesystem, network, process execution and credential access before accepting an npm update.",
   "keywords": [
     "supply-chain-security",
     "npm-security",

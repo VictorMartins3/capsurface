@@ -5,6 +5,10 @@ Notable user-facing changes are recorded here using
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-09-22
+
+First public release.
+
 ### Added
 
 - Offline `scan-lock` analysis of published npm tarballs selected by lockfile
@@ -108,7 +112,3 @@ Notable user-facing changes are recorded here using
   accurately.
 - Git and Node directory aliases resolve consistently when locating lockfile
   entries on Windows.
-
-## [0.1.0]
-
-Initial local snapshot, before release validation.
