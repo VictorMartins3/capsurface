@@ -170,7 +170,7 @@ Interrupted scans and concurrent writes fail rather than producing an
 apparently clean inventory. After a crashed process leaves the directory
 locked, rerun with a fresh output directory.
 
-Manifest schema v6 includes `coverage`: files and bytes read, skipped files,
+Manifest schema v7 includes `coverage`: files and bytes read, skipped files,
 and I/O errors. Endpoints and env vars are collected beyond the report's
 evidence samples. A resource limit or read failure marks analysis incomplete;
 `scan`/`scan-tree` exit 2, and `baseline`/`allowlist` refuse to approve it.
@@ -181,6 +181,10 @@ exit 0, but cannot suppress an invalid or unfinished snapshot.
 `contentIntegrity` separately records a SHA-256 digest of installed package
 files. Selective approvals bind this content and can expire with `--expires`;
 see [content scope and renewal](docs/REVIEW.md#content-and-expiration).
+
+`sourceContext` identifies files containing both network and credential
+indicators, with separate locations. [File correlation](docs/REVIEW.md#file-correlation)
+helps explain findings without claiming that credential data is transmitted.
 
 Establish a baseline, once, after human review:
 
