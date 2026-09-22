@@ -67,6 +67,57 @@ Old schema-v1 baselines are readable. Approval writes schema v2 and retains
 the unselected entries. A rules migration is shown in review and should be
 assessed separately from an actual package capability change.
 
+## Filesystem operations
+
+Manifest schema v5 supplements the existing `filesystem` capability with:
+
+| Capability | Examples of selected Node APIs |
+| --- | --- |
+| `filesystemRead` | `readFile`, `read`, `readdir`, `readlink`, `createReadStream` |
+| `filesystemWrite` | `writeFile`, `appendFile`, `mkdir`, `copyFile`, `rename`, `truncate`, `createWriteStream` |
+| `filesystemRemove` | `rm`, `rmdir`, `unlink` |
+
+Synchronous variants and `fs/promises` are included. These flags describe API
+selection in shipped source, not proof that an operation executes or that a
+package is malicious. Named imports count even when a particular call is not
+observed, consistent with the scanner's acquisition-based capability model.
+Copying, renaming and truncation are classified as writes; deletion APIs are
+classified as removal. The existing parent capability and risk score remain.
+Operation detail does not add the same risk points a second time.
+
+A newly selected operation blocks even when the parent `filesystem`
+capability was already approved. For example, upgrading from
+`fs.readFileSync(...)` to code that also selects `fs.rmSync(...)` reports a
+new `filesystemRemove` capability, with the method's original file and line.
+Review, SARIF and selective approval use the same operation-level change.
+
+Detection supports direct literal `require('fs').method` accesses, named
+ESM imports/re-exports, CommonJS destructuring and simple namespace bindings
+such as `const disk = require('fs')` or `import * as disk from 'node:fs'`.
+Member selection supports dotted access, literal bracket keys and `.promises`.
+Comments, string examples, regex literals and recognized erased TypeScript
+imports do not grant operation detail.
+
+Namespace attribution is conservative and file-local. If a binding is
+redeclared, used as a value, or its selected member is reassigned, its member
+operations are not attributed. Function parameters that reuse its name also
+prevent that attribution. This avoids guessing through shadowing or mutation;
+it can miss legitimate operations in code that passes `fs` to a helper.
+
+This is not AST or data-flow analysis. Indirect aliases, wrappers,
+`createRequire`, dynamic imports, computed properties, template interpolation,
+file-handle methods and `open` flags are not resolved into operation detail.
+Lifecycle command strings keep their existing script-content gate but do not
+receive these JavaScript operation flags. An absent flag means no supported
+operation was recognized, not that the package cannot perform it.
+
+Older baselines remain readable but lack these permissions. When a current
+scan selects an operation absent from the baseline schema, the gate reports
+`capability-detail-unreviewed` and asks for review of the engine migration.
+It does not claim the dependency necessarily added that behavior. Rescan and
+review with the new engine before approving; no operation permissions are
+silently inherited from an older broad filesystem approval.
+
 ## Dependency origin and SARIF
 
 Pass the installed tree's npm lockfile to explain who brought each dependency:

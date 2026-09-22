@@ -44,7 +44,7 @@
     }
   },
   "scripts": {
-    "test": "node --test test/boundary.test.js test/cli.test.js test/comparison.test.js test/diff.test.js test/discovery.test.js test/evasion.test.js test/gating.test.js test/hardening.test.js test/review.test.js test/scanner.test.js test/provenance.test.js test/sarif.test.js",
+    "test": "node --test test/boundary.test.js test/cli.test.js test/comparison.test.js test/diff.test.js test/discovery.test.js test/evasion.test.js test/gating.test.js test/hardening.test.js test/review.test.js test/scanner.test.js test/provenance.test.js test/sarif.test.js test/filesystem-operations.test.js",
     "demo": "./examples/run-demo.sh",
     "test:integration": "node --test test/integration.test.js"
   }

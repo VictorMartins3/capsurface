@@ -52,6 +52,27 @@ prevents drawing a performance conclusion from their elapsed times. After
 an engine migration, newly collected indicators may have existed before but
 been absent from older manifests; review that difference before approving.
 
+### Filesystem operation comparison
+
+Compared the scanner at `fa8e471` with filesystem operation detection on the
+same four production trees (5,853 physical installations). The scans found
+read APIs in 661 installations, write APIs in 252 and removal APIs in 106;
+these groups overlap. Existing capability records, risk scores and risk flags
+were unchanged. Discovery reported no errors or escaped links, and no scan
+reported incomplete coverage.
+
+Comparing old manifests with new scans requires operation-detail review for
+706 installations. These are engine-migration differences, not evidence of
+dependency behavior changes. A separate upgrade regression confirms that
+adding `rmSync` to a read-only package now blocks while the previous scanner
+allowed that change.
+
+Removal evidence was manually checked in 12 distinct packages, including
+esbuild, TypeScript and aws-crt. The sampled locations select filesystem
+removal APIs; they do not establish malicious intent or a corpus-wide
+false-positive rate. The comparison used Node 26.8.1 with old scans first,
+so elapsed times are not a controlled performance benchmark.
+
 ### Dependency review coverage
 
 Regression tests cover installation matching, physical duplicates, Windows

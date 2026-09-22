@@ -23,6 +23,7 @@ Where to change what:
 
 | You want to | Edit |
 |---|---|
+| Attribute filesystem operation detail | `lib/filesystem-operations.js` |
 | Add or fix a detection rule | `lib/categories.js` |
 | Change how source is read or capabilities extracted | `lib/scanner.js` |
 | Fold obfuscated specifiers before the rules see them | `lib/normalize.js` |
@@ -37,7 +38,7 @@ Where to change what:
 | Change CLI flags, output, exit codes | `bin/capsurface.js` |
 
 `lib/rules-version.js` hashes the detection rules and the scanner,
-normalizer, discovery, diff and comparison implementations (with line endings normalized).
+normalizer, discovery, diff, comparison and filesystem-operation implementations (with line endings normalized).
 Changing these changes that hash, and `check` warns that existing
 baselines were written by different rules. That is intentional: edit the engine and
 every committed baseline means something slightly different, which a security

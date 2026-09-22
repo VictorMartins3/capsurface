@@ -170,7 +170,7 @@ Interrupted scans and concurrent writes fail rather than producing an
 apparently clean inventory. After a crashed process leaves the directory
 locked, rerun with a fresh output directory.
 
-Manifest schema v4 includes `coverage`: files and bytes read, skipped files,
+Manifest schema v5 includes `coverage`: files and bytes read, skipped files,
 and I/O errors. Endpoints and env vars are collected beyond the report's
 evidence samples. A resource limit or read failure marks analysis incomplete;
 `scan`/`scan-tree` exit 2, and `baseline`/`allowlist` refuse to approve it.
@@ -234,6 +234,12 @@ capsurface approve .capsurface/manifests --baseline capsurface.lock.json \
 
 Approval updates only that installation and records the reason in the
 baseline. A changed scan or candidate baseline invalidates its review ID.
+
+Filesystem access now includes `filesystemRead`, `filesystemWrite` and
+`filesystemRemove` detail. An update that adds removal can fail the gate even
+when general filesystem access was already approved. See
+[filesystem operation detection](docs/REVIEW.md#filesystem-operations) for
+supported syntax and baseline migration.
 
 For dependency origins and GitHub Code Scanning output:
 

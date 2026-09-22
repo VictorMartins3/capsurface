@@ -7,6 +7,9 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- Filesystem read, write and removal capabilities, with per-operation evidence
+  and gating even when general filesystem access was already approved.
+
 - `review` reports dependency changes, blocking reasons and source evidence
   in Markdown, JSON and SARIF.
 - `approve` accepts one dependency installation with a required justification
@@ -34,8 +37,8 @@ Notable user-facing changes are recorded here using
   matching. Measurements and limitations are in [Verification](docs/VERIFICATION.md).
 - The engine fingerprint and manifest schema have changed. Existing baselines
   remain readable; rescan and review differences before accepting a new one.
-  Manifest schema v4 records incomplete analysis. Scan commands exit with
-  code 2 for incomplete coverage, and approval commands reject it. See
+  Manifest schema v5 adds filesystem operation detail to coverage metadata.
+  Scan commands exit with code 2 for incomplete coverage, and approval commands reject it. See
   [Reviewing dependency changes](docs/REVIEW.md).
 
 ### Fixed
