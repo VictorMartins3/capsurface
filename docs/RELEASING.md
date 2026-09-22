@@ -55,25 +55,64 @@ data, generated reports, caches and demo media do not. Keep the archive and
 any validation reports outside Git. After any source or metadata change, repeat
 packing and validate the new candidate rather than publishing a stale archive.
 
-## Publish deliberately
+## Configure the release boundary
 
-Before publication, confirm access to the intended npm package and repository,
-the final version, license and public security-reporting channel. The repository
-must be public for users to read the source and use its Action. Repository
-visibility, npm publication and GitHub release creation are separate maintainer
-actions; merging the preparation PR does not perform them.
+The workflow `.github/workflows/publish.yaml` runs on `v*` tags. It validates
+that the tag matches a stable package version and that the commit belongs to
+`main`, then runs unit, integration, demo and optional-parser tests. A separate
+fresh job stages the reviewed source using npm OIDC and provenance. There is
+no build step, dependency installation, shared cache or downloaded artifact in
+the publishing job. No npm publishing token is required.
 
-For automated publication, prefer npm's [trusted publishing](https://docs.npmjs.com/trusted-publishers/)
-when available for the package, and configure the exact repository and workflow.
-Follow npm's current bootstrap instructions for a first publication. Do not add
-a long-lived publishing token merely to make the first release easier.
-[Provenance](https://docs.npmjs.com/generating-provenance-statements/) requires a
-public source repository matching package.json; trusted publishing generates it
-automatically when supported. It attests publication origin, not package safety.
+Before creating a release tag, configure the package at:
+https://www.npmjs.com/package/capsurface/access
 
-Once publication is authorized, publish the validated candidate using the
-chosen authenticated release flow, tag that exact commit, and create a GitHub
-release with the reviewed notes. Verify registry version, tarball integrity and
-repository metadata, then install the exact version in a fresh directory with
-scripts disabled and run the documented smoke example. Verify the Action at
-its immutable commit too. Announce the release only after these checks pass.
+- Trusted Publisher: GitHub Actions.
+- Organization or user: `VictorMartins3`.
+- Repository: `capsurface`.
+- Workflow filename: `publish.yaml` (not the full path).
+- Environment: leave empty; this workflow does not use a GitHub environment.
+- Allow only `npm stage publish`; disable direct `npm publish` for this trust.
+- Publishing access: require two-factor authentication and disallow tokens.
+
+Creating or inspecting trust relationships can require npm browser/2FA
+reauthentication. Never add a token to work around this requirement. Review
+existing publishing tokens in npm account settings and revoke unused ones.
+Use a hardware security key or passkey for the maintainer account where possible.
+GitHub account 2FA must be enabled separately. This repository belongs to an
+individual account, so organization-wide 2FA policy does not apply.
+
+Protect release tags in the repository rulesets: restrict creation, updates
+and deletion to repository admins. Review changes to release workflows as
+carefully as changes to shipped source. Keep third-party Actions pinned to
+full commit SHAs; Dependabot proposes updates for review with a seven-day
+cooldown for routine version updates.
+
+The project `.npmrc` disables lifecycle scripts and sets a three-day release
+age filter. The age filter requires a recent npm version; older npm versions
+in the compatibility test matrix may not enforce it. Parser versions are also
+explicitly pinned. Review time-sensitive security fixes rather than blindly
+waiting for the filter to expire.
+
+## Stage and approve a release
+
+After merging a reviewed version change and passing CI, create a tag matching
+the package version on that exact commit. Do not move an existing release tag.
+Pushing a new tag starts validation and staging, not final npm publication.
+The current published versions are not retroactively given provenance by
+adding this workflow.
+
+When the workflow completes, open **Staged Packages** from the npm account
+menu. Inspect the candidate tarball, its diff and provenance, then approve
+with the maintainer's 2FA. This is the final publication step. Reject a candidate
+whose content or origin does not match the reviewed release.
+
+Verify the resulting registry version, integrity and provenance. Install that
+exact version in a fresh directory with scripts disabled and run the documented
+smoke example. Create GitHub release notes for that same immutable tag, then
+announce the release. Provenance attests origin, not package safety.
+
+References:
+- https://docs.npmjs.com/trusted-publishers/
+- https://docs.npmjs.com/staged-publishing/
+- https://evilmartians.com/chronicles/the-secure-way-to-release-an-npm-package

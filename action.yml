@@ -68,7 +68,7 @@ runs:
       run: node "$GITHUB_ACTION_PATH/bin/action-review.js"
     - name: Retain dependency review
       if: inputs.upload-artifact == 'true'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: ${{ inputs.artifact-name }}
         path: ${{ steps.review.outputs.directory }}
@@ -76,7 +76,7 @@ runs:
         retention-days: 14
     - name: Upload dependency review to Code Scanning
       if: inputs.upload-sarif == 'true'
-      uses: github/codeql-action/upload-sarif@v4
+      uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
       with:
         sarif_file: ${{ steps.review.outputs.sarif }}
         category: capsurface/dependency-review
