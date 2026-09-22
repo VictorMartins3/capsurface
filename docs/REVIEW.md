@@ -270,7 +270,8 @@ capabilities, with original file/line evidence and the resolved specifier.
 Existing scoring and capability-escalation rules then apply. Network findings
 also feed file correlation and installation-path context. Unknown specifiers
 on recognized loaders contribute `unresolvedRequire`; they do not become an
-invented capability. This pass does not yet attribute filesystem operations,
+invented capability. This pass also attributes [process launch modes](#process-launch-modes).
+It does not yet attribute filesystem operations,
 aliased `fetch`, environment enumeration or data flow, and does not remove
 false positives from the source-text scanner.
 
@@ -294,6 +295,39 @@ changes. Some production trees remain unsuitable for strict deep scans; see the
 The composite Action uses basic scanning and cannot satisfy a deep baseline;
 use the CLI in CI with an explicitly provisioned trusted parser environment.
 No parser is installed or fetched during a scan.
+
+## Process launch modes
+
+Deep scans add `execShell`, `execDirect` and `execUnresolved` beneath `exec`.
+The parent keeps its risk score; a newly observed detail still requires review
+when general process execution was already approved. Older manifests missing
+these keys produce an engine-migration review rather than silently accepting
+the new detail. Basic scans do not collect these call-site details.
+
+| Capability | Recognized calls |
+| --- | --- |
+| `execShell` | `exec`/`execSync`, or `spawn`/`execFile` families with literal `shell: true` or a nonempty shell string |
+| `execDirect` | `fork`, or `spawn`/`execFile` families with omitted options or literal options that do not enable shell |
+| `execUnresolved` | Recognized process calls whose launch mode depends on unresolved arguments or options |
+
+This follows the [Node child-process API](https://nodejs.org/api/child_process.html).
+A direct launch describes the API invocation, not the executable: `spawn('sh')`
+can still start a shell, and a directly launched program can execute anything.
+The scanner does not infer commands, argument contents, runtime reachability
+or safety. An absent detail is not proof that no such operation occurs.
+
+Attribution resolves immutable aliases, literal members, named/default/namespace
+imports and supported `createRequire` loaders of exactly `child_process` or
+`node:child_process`. Shadowed functions and unrelated `.exec()` methods are
+excluded. Evidence points at the call in the original source. Selecting an API
+without calling it does not add launch detail.
+
+Only inline literal options are classified. Options held in variables, spreads,
+computed keys, getters, prototype overrides and unknown callbacks remain
+unresolved. Mutable bindings, function wrappers and `.call`/`.apply` are not
+resolved. Mutation or escape of a recognized module namespace makes that
+file's deep analysis unavailable, as with `createRequire` namespace handling.
+Markdown, SARIF and selective approval retain the operation-level change.
 
 ## Filesystem operations
 

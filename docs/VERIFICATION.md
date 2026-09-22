@@ -29,6 +29,39 @@ and URI containment. Generated SARIF has also been validated against the
 repository with the feature enabled; artifact validation alone does not test
 that integration.
 
+### Process launch modes
+
+Compared basic and deep scans at `feda649` with engine `7449c3bcf6de` on the
+same 5,853 physical installations, using Node 26.8.1, Acorn 8.15.0 and
+acorn-typescript 1.4.13. In deep mode, 135 installations gained process detail:
+41 selected shell execution, 44 direct launch and 77 unresolved launch modes;
+these groups overlap. No pre-existing category appeared or disappeared.
+
+Basic capability/evidence records, risk scores and flags were unchanged.
+Discovery, basic source coverage and content hashing completed without errors.
+Of 214,131 files submitted to AST analysis, unavailable files increased from
+29,823 to 29,858. Incomplete deep installations increased from 1,767 to 1,776:
+recognized child-process namespaces passed to unmodeled helpers now expose
+coverage gaps, including import wrappers in `@rushstack/node-core-library`
+and promisification in `mz`. Those packages cannot receive selective approval
+until their deep coverage is complete.
+
+Sampled evidence includes shell-based libc detection in `detect-libc`, direct
+`execFile` calls in Sentry's macOS context collection, and unresolved options in
+`cross-spawn`. Detail is launch-mode attribution, not a verdict on those packages.
+Comparing old baselines requires review of newly collected detail; these corpus
+differences are engine migrations, not dependency behavior changes.
+
+A controlled regression changing only `spawn` options to `shell: true` passes
+the previous engine and blocks the new one. All 334 default tests, 34 deep tests,
+offline npm integration and the escalation demo passed. Tests cover scope and
+alias handling, dynamic options, namespace mutation/escape, source evidence,
+Markdown/SARIF, selective approval and legacy baseline migration.
+
+The production trees retain repeated installations and the synthetic
+abort-controller compromise. This is not a malware-precision or performance
+benchmark, and no dependency scripts were executed.
+
 ### TypeScript and JSX coverage
 
 Compared basic and deep scans at `b6bcca7` with engine `b59e5bac6ccd` on

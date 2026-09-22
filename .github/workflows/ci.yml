@@ -72,9 +72,9 @@ jobs:
           const path = require('path');
           const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'capsurface-types-'));
           fs.writeFileSync(path.join(dir, 'package.json'), '{"name":"typed-smoke"}');
-          fs.writeFileSync(path.join(dir, 'index.ts'), "const load = require as NodeRequire; load('child_process');");
+          fs.writeFileSync(path.join(dir, 'index.ts'), "const load = require as NodeRequire; load('child_process').exec('echo fixture');");
           const result = require('./lib/scanner').scanPackageDir(dir, { deep: true });
-          if (!result.astCoverage.complete || !result.capabilities.exec.present) process.exit(1);
+          if (!result.astCoverage.complete || !result.capabilities.exec.present || !result.capabilities.execShell.present) process.exit(1);
           JS
 
   review-action:

@@ -23,6 +23,7 @@ Where to change what:
 
 | You want to | Edit |
 |---|---|
+| Classify AST process launch modes | `lib/process-operations.js`, `lib/ast-imports.js` |
 | Attribute filesystem operation detail | `lib/filesystem-operations.js` |
 | Add or fix a detection rule | `lib/categories.js`, `lib/ast-capabilities.js` |
 | Change how source is read or capabilities extracted | `lib/scanner.js` |
@@ -42,7 +43,7 @@ Where to change what:
 
 `lib/rules-version.js` hashes the detection rules and the scanner,
 normalizer, discovery, diff, comparison, filesystem-operation, content-integrity
-approval-policy, source-context, install-context AST import, typed-parser and AST capability implementations (with line endings normalized).
+approval-policy, source-context, install-context AST import, typed-parser, process-operation and AST capability implementations (with line endings normalized).
 Changing these changes that hash, and `check` warns that existing
 baselines were written by different rules. That is intentional: edit the engine and
 every committed baseline means something slightly different, which a security
