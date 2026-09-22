@@ -22,6 +22,13 @@ credential-access capabilities. Use it locally or in dependency-update PRs.
 Early 0.x release. Static analysis is a review signal, not proof that a package
 is safe. [Coverage limits](#limits) are part of the tool's contract.
 
+## Terminal demo
+
+![Terminal animation illustrating a synthetic dependency update blocked by capsurface](https://raw.githubusercontent.com/VictorMartins3/capsurface/v0.1.0/docs/demo.gif)
+
+Illustrative terminal demo with a synthetic dependency change. The review example
+below includes source evidence and commands to reproduce the bundled fixture.
+
 ## See what changes
 
 This is a condensed example from the repository's **synthetic**
