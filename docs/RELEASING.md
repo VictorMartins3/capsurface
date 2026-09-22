@@ -13,12 +13,10 @@ npm view capsurface versions --json
 gh release list --repo VictorMartins3/capsurface
 ```
 
-A registry 404 does not reserve the name or establish ownership. The current
-`0.1.0` in package.json and the changelog's initial local snapshot are not
-proof of a published release. For the first release, consolidate that local
-snapshot and `Unreleased` into one entry with the actual version and release
-date. Update package.json in the release PR; do not create a tag as a side
-effect of editing the version.
+A registry 404 does not reserve the name or establish ownership. Move the
+user-facing changes from `Unreleased` into an entry with the chosen version
+and actual release date. Update package.json in the release PR; do not create
+a tag as a side effect of editing the version.
 
 Describe CLI and baseline compatibility, experimental features and known
 limits in the notes. Link the measured results in [Verification](VERIFICATION.md)

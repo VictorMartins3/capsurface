@@ -13,13 +13,12 @@ versions in CI, before a compromised release gets merged.
 
 ## Status
 
-Preparing the first public release. The package is not yet published to npm;
-use a reviewed source checkout as described below. Experimental AST analysis
-has explicit coverage limits. This is a review aid, not a malware-free guarantee.
+Early 0.x release. Experimental AST analysis has explicit coverage limits.
+This is a review aid, not a malware-free guarantee.
 
 ## Quick start
 
-No mandatory dependencies, no build step. First [install from source](#install),
+No mandatory dependencies, no build step. First [install the CLI](#install),
 then run these commands in the project you want to review.
 
 ```bash
@@ -134,12 +133,15 @@ purpose, since that is exactly where flatmap-stream hid.
 
 No mandatory dependencies, no build step, just Node.js >= 14.
 
-From a reviewed checkout, install the CLI outside the project being scanned:
+Install the pinned release outside the project being scanned:
 
 ```bash
-npm install --global --ignore-scripts /absolute/path/to/capsurface
+npm install --global --ignore-scripts capsurface@0.1.0
 capsurface --help
 ```
+
+For development, install a reviewed checkout with
+`npm install --global --ignore-scripts /absolute/path/to/capsurface`.
 
 You can also run `node /absolute/path/to/capsurface/bin/capsurface.js` directly,
 without installation. Use that explicit path in CI or npm scripts, where a
