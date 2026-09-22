@@ -1,6 +1,7 @@
 'use strict';
 
 // Hosted Action smoke test: only copies and scans source. Neither fixture runs.
+const assert = require('assert').strict;
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
@@ -19,14 +20,44 @@ function install(version) {
     packages: { '': { name: 'action-fixture', dependencies: { [pkg.name]: pkg.version } },
       [`node_modules/${pkg.name}`]: { name: pkg.name, version: pkg.version } } }, null, 2));
 }
-install(1);
-run('scan-tree', 'node_modules', '--out', 'baseline-manifests');
-run('baseline', 'baseline-manifests', '--out', 'capsurface.lock.json');
-git('init', '--quiet');
-git('add', 'capsurface.lock.json', 'package-lock.json');
-git('-c', 'user.name=Integration Test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false',
-  '-c', 'core.hooksPath=' + path.join(root, 'no-hooks'), 'commit', '--quiet', '-m', 'Record the reviewed dependency');
-const sha = git('rev-parse', 'HEAD');
-install(2);
-if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `base-sha=${sha}\n`);
-console.log(sha);
+function prepare() {
+  install(1);
+  run('scan-tree', 'node_modules', '--out', 'baseline-manifests');
+  run('baseline', 'baseline-manifests', '--out', 'capsurface.lock.json');
+  git('init', '--quiet');
+  git('add', 'capsurface.lock.json', 'package-lock.json');
+  git('-c', 'user.name=Integration Test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false',
+    '-c', 'core.hooksPath=' + path.join(root, 'no-hooks'), 'commit', '--quiet', '-m', 'test: record reviewed dependency');
+  const sha = git('rev-parse', 'HEAD');
+  install(2);
+  if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `base-sha=${sha}\n`);
+  console.log(sha);
+}
+
+function reviewedUpgrade() {
+  const report = JSON.parse(fs.readFileSync(process.env.REVIEW_JSON, 'utf8'));
+  assert.equal(report.wouldFail, true, 'target-baseline review must retain the escalation');
+  assert.equal(report.entries.length, 1);
+  assert.equal(report.entries[0].provenance.status, 'resolved');
+  return report.entries[0];
+}
+
+switch (process.argv[3] || 'prepare') {
+  case 'prepare':
+    prepare();
+    break;
+  case 'approve': {
+    assert.equal(process.env.OUTCOME, 'failure', 'the unapproved upgrade must be blocked');
+    const entry = reviewedUpgrade();
+    const manifests = path.join(path.dirname(process.env.REVIEW_JSON), 'manifests');
+    run('approve', manifests, '--baseline', 'capsurface.lock.json', '--id', entry.id,
+      '--reason', 'Reviewed the test fixture');
+    break;
+  }
+  case 'verify':
+    assert.equal(process.env.GATE, 'false', 'the approved upgrade must pass');
+    reviewedUpgrade();
+    break;
+  default:
+    throw new Error('Expected prepare, approve or verify');
+}

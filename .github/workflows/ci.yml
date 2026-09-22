@@ -64,25 +64,21 @@ jobs:
         with:
           project-directory: ${{ runner.temp }}/review-fixture
           base-ref: ${{ steps.fixture.outputs.base-sha }}
-          artifact-name: capsurface-review-before-approval
       - name: Assert the gate and approve the fixture
         env:
           OUTCOME: ${{ steps.blocked.outcome }}
           REVIEW_JSON: ${{ steps.blocked.outputs.json }}
-        run: |
-          test "$OUTCOME" = failure
-          node -e 'const fs = require("fs"); const {execFileSync} = require("child_process"); const r = JSON.parse(fs.readFileSync(process.env.REVIEW_JSON)); if (!r.wouldFail || r.entries.length !== 1) process.exit(1); execFileSync(process.execPath, ["bin/capsurface.js", "approve", require("path").join(require("path").dirname(process.env.REVIEW_JSON), "manifests"), "--baseline", process.env.RUNNER_TEMP + "/review-fixture/capsurface.lock.json", "--id", r.entries[0].id, "--reason", "Reviewed the test fixture"], {stdio: "inherit"});'
+        run: node test/action-fixture.js "$RUNNER_TEMP/review-fixture" approve
       - name: Verify the approved gate retains the target-branch review
         id: approved
         uses: ./
         with:
           project-directory: ${{ runner.temp }}/review-fixture
           base-ref: ${{ steps.fixture.outputs.base-sha }}
+          upload-artifact: 'true'
           artifact-name: capsurface-review-after-approval
       - name: Assert approvals remain visible
         env:
           GATE: ${{ steps.approved.outputs.would-fail }}
           REVIEW_JSON: ${{ steps.approved.outputs.json }}
-        run: |
-          test "$GATE" = false
-          node -e 'const r = require(process.env.REVIEW_JSON); if (!r.wouldFail || r.entries.length !== 1 || r.entries[0].provenance.status !== "resolved") process.exit(1);'
+        run: node test/action-fixture.js "$RUNNER_TEMP/review-fixture" verify

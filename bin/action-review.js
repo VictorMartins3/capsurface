@@ -55,7 +55,7 @@ function main() {
   if (process.env.GITHUB_STEP_SUMMARY) {
     const markdown = fs.readFileSync(output.markdown, 'utf8');
     const summary = Buffer.byteLength(markdown) < 900000 ? markdown
-      : markdown.slice(0, 200000) + '\n\nReport shortened for the job summary. Download the review artifact for the full findings.\n';
+      : markdown.slice(0, 200000) + '\n\nReport shortened for the job summary. Full findings remain in the report files exposed by the Action outputs.\n';
     fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
       `Proposed baseline check: **${check.status === 1 ? 'FAIL' : 'PASS'}**.\n\n` + summary);
   }

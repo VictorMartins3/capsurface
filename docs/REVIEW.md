@@ -125,7 +125,7 @@ project dependencies with `npm ci --ignore-scripts`. The Action scans the
 installed tree; it does not install dependencies or execute their scripts.
 
 It reads the baseline from the PR target SHA, emits Markdown/JSON/SARIF,
-appends the Markdown to the job summary, uploads a review artifact, and then
+appends the Markdown to the job summary, and then
 checks the proposed baseline. Changes stay visible even when the PR also
 updates its baseline. `fail-on-new` defaults to true and `report-only` defaults
 to false. The adoption example enables observation mode explicitly. Invalid
@@ -133,25 +133,32 @@ or incomplete scans fail in either mode. Review baseline edits using normal
 branch protection and code review.
 
 Inputs include `project-directory`, `baseline`, `lockfile`, `base-ref`,
-`fail-on-new`, `report-only`, `upload-sarif` and `artifact-name`. Baseline and
+`fail-on-new`, `report-only`, `upload-sarif`, `upload-artifact` and
+`artifact-name`. Baseline and
 lockfile paths are relative to the project. `base-ref` defaults to the PR base
 SHA; outside a PR, specify a full target SHA or use an empty value to compare
 with the proposed baseline. Outputs `markdown`, `json` and `sarif` are local
 report paths; `would-fail` describes the proposed-baseline gate. Use distinct
-artifact names for multiple projects/jobs. Summaries exceeding the display
-budget are shortened with a notice; artifact reports remain complete.
+artifact names when enabling uploads for multiple projects/jobs. Summaries
+exceeding the display budget are shortened with a notice; local report files
+remain complete.
 
-SARIF is always retained as an artifact. Upload to Code Scanning is opt-in
+Reports are generated in the runner's temporary directory, not committed to
+Git. Artifact upload is disabled by default; set `upload-artifact: 'true'`
+when downloadable reports are useful. Uploaded artifacts expire after 14 days.
+The job summary works without artifact upload.
+
+Upload to Code Scanning is opt-in
 with `upload-sarif: 'true'`, `security-events: write`, and `actions: read` for
 private repositories. GitHub supports Code Scanning for public repositories
 and eligible organization-owned private repositories with GitHub Code
 Security enabled. A private repository does not automatically qualify. The
-Action does not change settings or purchase access; Markdown and artifacts
+Action does not change settings or purchase access; Markdown and optional workflow artifacts
 work without Code Scanning. See
 [GitHub upload requirements](https://docs.github.com/en/code-security/how-tos/find-and-fix-code-vulnerabilities/integrate-with-existing-tools/upload-sarif-file).
 
 The Action posts no PR comments and requires no comment-write permission.
-It retains `.capsurface-snapshot` in the artifact; keep this hidden file when
+When artifact upload is enabled, it retains `.capsurface-snapshot`; keep this hidden file when
 copying or downloading scan inventories. SARIF and source evidence can
 contain dependency source snippets, so artifact access follows repository
 permissions.

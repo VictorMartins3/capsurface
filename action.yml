@@ -22,6 +22,9 @@ inputs:
   upload-sarif:
     description: Upload to GitHub Code Scanning when supported and enabled. Requires security-events write.
     default: 'false'
+  upload-artifact:
+    description: Retain generated reports as a temporary workflow artifact.
+    default: 'false'
   artifact-name:
     description: Unique artifact name for this review job.
     default: capsurface-review
@@ -52,6 +55,7 @@ runs:
         CAPSURFACE_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
       run: node "$GITHUB_ACTION_PATH/bin/action-review.js"
     - name: Retain dependency review
+      if: inputs.upload-artifact == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.artifact-name }}
@@ -80,6 +84,6 @@ runs:
           exit 2
         fi
         if [[ "$CAPSURFACE_GATE" == "true" && "$CAPSURFACE_REPORT_ONLY" != "true" ]]; then
-          echo 'Dependency capabilities exceed the proposed baseline. Read the job summary and review artifact.' >&2
+          echo 'Dependency capabilities exceed the proposed baseline. Read the job summary for blocking reasons.' >&2
           exit 1
         fi
