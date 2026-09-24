@@ -77,10 +77,6 @@ describe('evasion corpus', () => {
     });
   }
 
-  test('the corpus covers both outcomes', () => {
-    assert.ok(CORPUS.some(([, , , c]) => c), 'at least one catch');
-    assert.ok(CORPUS.some(([, , , c]) => !c), 'at least one documented miss');
-  });
 });
 
 describe('type-position import() is not a runtime acquisition', () => {

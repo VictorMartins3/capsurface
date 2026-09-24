@@ -524,7 +524,8 @@ function cmdReview(args) {
   if (flags.lockfile !== undefined && typeof flags.lockfile !== 'string') die('--lockfile requires a filename');
   if (flags['project-root'] !== undefined && typeof flags['project-root'] !== 'string') die('--project-root requires a directory');
   const provenance = flags.lockfile ? loadProvenance(flags.lockfile, flags['project-root']) : undefined;
-  const { report } = buildReview(loadBaseline(readJson(baselineFile)), loadManifestsFromDir(positional[0]), flags['fail-on-new'] === true, provenance);
+  const lock = readJson(baselineFile);
+  const { report } = buildReview(loadBaseline(lock), loadManifestsFromDir(positional[0]), flags['fail-on-new'] === true, provenance, lock.approvals);
   report.baseline = baselineFile;
   report.reportOnly = flags['report-only'] === true;
   const text = format === 'markdown' ? renderMarkdown(report) : JSON.stringify(format === 'sarif' ? renderSarif(report) : report, null, 2) + '\n';
