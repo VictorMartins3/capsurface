@@ -5,6 +5,15 @@ Notable user-facing changes are recorded here using
 
 ## [Unreleased]
 
+### Added
+
+- Before/after source evidence in dependency reviews, with separate evidence
+  for ambiguous predecessors and explicit limits when an indicator was not
+  detected. Rescan both snapshots with the updated engine before approval.
+- An audit of all current installations in JSON, Markdown and SARIF reviews,
+  including unchanged packages and the status, reason and expiry of matching
+  baseline approvals. Audit information does not change gate decisions.
+
 ### Fixed
 
 - Deep scans run parsing and AST analysis in a separate process with a five-second

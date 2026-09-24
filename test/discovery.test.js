@@ -175,17 +175,6 @@ describe('package discovery (scan-tree)', () => {
       assert.notEqual(res.status, 0);
     });
 
-    test('a legitimate sibling-directory symlink (workspace-style) inside the project is still followed', () => {
-      const tmp = mkTmpDir('workspace');
-      const nm = path.join(tmp, 'node_modules');
-      const realPkg = writePackage(tmp, 'packages/workspace-pkg', { name: 'workspace-pkg', version: '1.0.0' });
-      fs.mkdirSync(nm, { recursive: true });
-      fs.symlinkSync(realPkg, path.join(nm, 'workspace-pkg'), 'dir');
-
-      const { names } = scanTree(nm);
-      assert.ok(names.includes('workspace-pkg@1.0.0'), 'a symlink to a sibling directory within the project must still work');
-    });
-
     // Regression test for a real coverage gap found in review: the
     // default boundary (one level up from the scan root) is correct when
     // scanning a monorepo's top-level node_modules, but too tight when

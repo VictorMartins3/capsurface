@@ -203,3 +203,112 @@ test('general baselines retain capability comparison without forcing content pin
   const report = buildReview(new Map(), new Map([['pkg', [{ ...current, contentIntegrity: undefined }]]]));
   assert.equal(report.report.entries[0].approvable, false);
 });
+
+test('audit retains applied approvals when no findings remain, including in SARIF', () => {
+  const f = fixture();
+  assert.equal(f.review().audit.counts.unbaselined, 1);
+  assert.equal(f.approve().status, 0);
+  const report = f.review();
+  assert.equal(report.entries.length, 0);
+  assert.equal(report.wouldFail, false);
+  assert.equal(report.audit.counts.approved, 1);
+  const item = report.audit.installations[0];
+  assert.equal(item.approval.status, 'applied');
+  assert.equal(item.approval.reason, 'Reviewed package files');
+  assert.equal(item.approval.source, 'selected-baseline');
+  const sarif = runCli(['review', f.out, '--baseline', f.baseline, '--format', 'sarif']);
+  const run = JSON.parse(sarif.stdout).runs[0];
+  assert.equal(run.results.length, 0);
+  assert.deepEqual(run.properties.audit, report.audit);
+  const md = runCli(['review', f.out, '--baseline', f.baseline]);
+  assert.match(md.stdout, /approval applied/);
+  assert.match(md.stdout, /Reviewed package files/);
+  const lock = f.lock();
+  delete lock.packages.pkg[0].approval;
+  fs.writeFileSync(f.baseline, JSON.stringify(lock));
+  const unchanged = f.review();
+  assert.equal(unchanged.entries.length, 0);
+  assert.equal(unchanged.audit.counts.unchanged, 1);
+  assert.equal(unchanged.audit.counts.approved, 0);
+});
+
+test('audit distinguishes expired, invalid and content-mismatched approvals without changing gates', () => {
+  const f = fixture();
+  assert.equal(f.approve().status, 0);
+  const lock = f.lock();
+  lock.packages.pkg[0].approval.expiresAt = '2000-01-01T00:00:00Z';
+  fs.writeFileSync(f.baseline, JSON.stringify(lock));
+  let report = f.review();
+  assert.equal(report.audit.installations[0].approval.status, 'expired');
+  assert.equal(report.wouldFail, true);
+  lock.packages.pkg[0].approval.expiresAt = 'invalid';
+  fs.writeFileSync(f.baseline, JSON.stringify(lock));
+  report = f.review();
+  assert.equal(report.audit.installations[0].approval.status, 'invalid');
+  delete lock.packages.pkg[0].approval.expiresAt;
+  fs.writeFileSync(f.baseline, JSON.stringify(lock));
+  fs.writeFileSync(path.join(f.pkg, 'data.txt'), 'different content');
+  f.scan();
+  report = f.review();
+  assert.equal(report.audit.installations[0].approval.status, 'not-applicable');
+  assert.equal(report.audit.counts['review-required'], 1);
+  assert.equal(report.wouldFail, true);
+});
+
+test('audit cannot apply approvals to incomplete scans, stale rules or ambiguous predecessors', () => {
+  const f = fixture();
+  assert.equal(f.approve().status, 0);
+  const approved = f.lock().packages.pkg[0];
+  const current = f.scan();
+  const review = (baselines) => buildReview(new Map([['pkg', baselines]]), new Map([['pkg', [current]]])).report;
+  current.coverage.complete = false;
+  let report = review([approved]);
+  assert.equal(report.audit.counts.incomplete, 1);
+  assert.notEqual(report.audit.installations[0].approval.status, 'applied');
+  assert.equal(report.wouldFail, true);
+  current.coverage.complete = true;
+  approved.rulesVersion = 'old';
+  report = review([approved]);
+  assert.equal(report.audit.installations[0].approval.status, 'needs-review');
+  assert.equal(report.audit.counts.approved, 0);
+  const second = JSON.parse(JSON.stringify(approved));
+  second.approval.reason = 'Different review';
+  report = review([approved, second]);
+  assert.equal(report.audit.installations[0].approval.status, 'ambiguous');
+  assert.equal(report.audit.counts.approved, 0);
+  assert.equal(report.wouldFail, true);
+});
+
+test('audit ignores approvals supplied by the scanned package and escapes baseline reasons', () => {
+  const f = fixture();
+  assert.equal(f.approve().status, 0);
+  const approved = f.lock().packages.pkg[0];
+  const current = f.scan();
+  current.approval = approved.approval;
+  const report = buildReview(new Map(), new Map([['pkg', [current]]])).report;
+  assert.equal(report.audit.installations[0].approval.status, 'none');
+  assert.equal(report.audit.counts.unbaselined, 1);
+  const lock = f.lock();
+  lock.approvals[0].reason = '<script>bad</script>\n# fake heading';
+  fs.writeFileSync(f.baseline, JSON.stringify(lock));
+  const md = runCli(['review', f.out, '--baseline', f.baseline]).stdout;
+  assert.ok(!md.includes('<script>'));
+  assert.ok(!md.includes('\n# fake heading'));
+  assert.ok(md.includes('&lt;script&gt;'));
+});
+
+test('audit does not attribute a reason from another approval or ambiguous history', () => {
+  const f = fixture();
+  assert.equal(f.approve().status, 0);
+  const original = f.lock();
+  const lock = JSON.parse(JSON.stringify(original));
+  lock.approvals[0].contentIntegrity.digest = 'f'.repeat(64);
+  fs.writeFileSync(f.baseline, JSON.stringify(lock));
+  let report = f.review();
+  assert.equal(report.audit.installations[0].approval.status, 'applied');
+  assert.equal(report.audit.installations[0].approval.reason, undefined);
+  original.approvals.push({ ...original.approvals[0], reason: 'Conflicting history' });
+  fs.writeFileSync(f.baseline, JSON.stringify(original));
+  report = f.review();
+  assert.equal(report.audit.installations[0].approval.reason, undefined);
+});

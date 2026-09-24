@@ -153,6 +153,7 @@ describe('rules-version drift', () => {
     runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'cur/p@1.0.0.json')]);
     const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json')]);
     assert.ok(!/different scanning rules/.test(res.stderr));
+    assert.match(res.stdout, /No capability escalations/);
     assert.equal(res.status, 0);
   });
 });
@@ -242,20 +243,8 @@ describe('tampering under an unchanged version', () => {
     assert.match(res.stdout, /CRITICAL/);
   });
 
-  test('an untouched package at a baselined version stays quiet', () => {
-    const tmp = mkTmpDir('same-version-clean');
-    writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
-    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
-    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
-    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'cur/p@1.0.0.json')]);
-
-    const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json')]);
-    assert.equal(res.status, 0);
-    assert.match(res.stdout, /No capability escalations/);
-  });
-
-  // The union exists so a capability approved in any installed version is not
-  // treated as new. It must not launder tampering of a different version.
+  // Predecessor matching must not borrow permissions from a sibling version
+  // to excuse tampering in the current installation.
   test('a capability approved only in a sibling version does not excuse it here', () => {
     const tmp = mkTmpDir('same-version-union');
     writePackage(tmp, 'a', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
@@ -274,20 +263,20 @@ describe('tampering under an unchanged version', () => {
   });
 });
 
+function tamperedTree() {
+  const tmp = mkTmpDir('report-only');
+  writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
+  runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
+  runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
+  writePackage(tmp, 'v2', { name: 'p', version: '1.0.1', scripts: { postinstall: 'node x.js' } }, {
+    'index.js': "require('https');\nconst t = process.env.NPM_TOKEN;\n",
+  });
+  runCli(['scan', path.join(tmp, 'v2'), '--out', path.join(tmp, 'cur/p@1.0.1.json')]);
+  return tmp;
+}
+
 // Nobody turns a blocking gate on in an unfamiliar codebase on day one.
 describe('--report-only', () => {
-  function tamperedTree() {
-    const tmp = mkTmpDir('report-only');
-    writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
-    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
-    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
-    writePackage(tmp, 'v2', { name: 'p', version: '1.0.1', scripts: { postinstall: 'node x.js' } }, {
-      'index.js': "require('https');\nconst t = process.env.NPM_TOKEN;\n",
-    });
-    runCli(['scan', path.join(tmp, 'v2'), '--out', path.join(tmp, 'cur/p@1.0.1.json')]);
-    return tmp;
-  }
-
   test('reports the same findings but exits 0', () => {
     const tmp = tamperedTree();
     const gated = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json')]);
@@ -317,20 +306,8 @@ describe('--report-only', () => {
 // gate on, which is only worth doing if the output goes somewhere other than
 // a CI log.
 describe('--json', () => {
-  function tampered() {
-    const tmp = mkTmpDir('check-json');
-    writePackage(tmp, 'v1', { name: 'p', version: '1.0.0' }, { 'index.js': "require('fs');\n" });
-    runCli(['scan', path.join(tmp, 'v1'), '--out', path.join(tmp, 'base/p@1.0.0.json')]);
-    runCli(['baseline', path.join(tmp, 'base'), '--out', path.join(tmp, 'lock.json')]);
-    writePackage(tmp, 'v2', { name: 'p', version: '1.0.1', scripts: { postinstall: 'node x.js' } }, {
-      'index.js': "require('https');\nconst t = process.env.NPM_TOKEN;\n",
-    });
-    runCli(['scan', path.join(tmp, 'v2'), '--out', path.join(tmp, 'cur/p@1.0.1.json')]);
-    return tmp;
-  }
-
   test('emits a machine-readable report and still fails', () => {
-    const tmp = tampered();
+    const tmp = tamperedTree();
     const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json'), '--json']);
     assert.equal(res.status, 1);
     const payload = JSON.parse(res.stdout);
@@ -343,7 +320,7 @@ describe('--json', () => {
   });
 
   test('exits 0 with --report-only and says which mode it was', () => {
-    const tmp = tampered();
+    const tmp = tamperedTree();
     const res = runCli(['check', path.join(tmp, 'cur'), '--baseline', path.join(tmp, 'lock.json'), '--json', '--report-only']);
     assert.equal(res.status, 0);
     const payload = JSON.parse(res.stdout);
