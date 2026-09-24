@@ -53,6 +53,57 @@ test('review exposes matching, file/line evidence, coverage and the same gate ou
   assert.equal(JSON.parse(check.stdout).escalations.find((entry) => entry.name === 'p').id, p.id);
 });
 
+test('explain reads one saved review entry without revalidating or changing approval inputs', () => {
+  const f = fixture();
+  const report = f.review();
+  const entry = report.entries.find((item) => item.name === 'p');
+  const file = path.join(f.tmp, 'review.json');
+  f.save(file, report);
+  const original = fs.readFileSync(file, 'utf8');
+  // The saved report remains readable even when its original inputs are gone.
+  fs.unlinkSync(f.baseline);
+  fs.rmSync(f.out, { recursive: true });
+  const args = ['explain', '--report', file, '--id', entry.id, '--json'];
+  const result = runCli(args);
+  assert.equal(result.status, 0, result.stderr);
+  const explanation = JSON.parse(result.stdout);
+  assert.deepEqual(explanation.entry, entry);
+  assert.equal(explanation.source.freshness, 'not-checked');
+  assert.equal(explanation.idKind, 'review-content-id');
+  assert.equal(explanation.report.wouldFail, true, 'a successful lookup is not a passing gate');
+  assert.deepEqual(explanation.audit, report.audit.installations.find((item) => item.name === 'p'));
+  const output = path.join(f.tmp, 'details/entry.json');
+  const saved = runCli([...args, '--out', output]);
+  assert.equal(saved.status, 0, saved.stderr);
+  assert.equal(saved.stdout, '');
+  assert.deepEqual(JSON.parse(fs.readFileSync(output)), explanation);
+  assert.equal(runCli([...args, '--out', file]).status, 2);
+  assert.equal(fs.readFileSync(file, 'utf8'), original);
+});
+
+test('explain rejects missing, ambiguous and malformed IDs or reports', () => {
+  const f = fixture();
+  const report = f.review(), id = report.entries[0].id;
+  const file = path.join(f.tmp, 'review.json');
+  const args = ['explain', '--report', file, '--id', id];
+  f.save(file, report);
+  assert.equal(runCli([...args, '--unknown']).status, 2);
+  assert.equal(runCli(['explain', '--report', file, '--id', id.slice(0, 8)]).status, 2);
+  assert.equal(runCli(['explain', '--report', file, '--id', '0'.repeat(32)]).status, 2);
+  for (const invalid of [null, { ...report, schemaVersion: 99 }, { runs: [] },
+    { ...report, entries: [report.entries[0], report.entries[0]] },
+    { ...report, entries: [{ ...report.entries[0], evidence: null }] }]) {
+    f.save(file, invalid);
+    const result = runCli(args);
+    assert.equal(result.status, 2);
+    assert.equal(result.stdout, '');
+  }
+  fs.writeFileSync(file, '{');
+  assert.equal(runCli(args).status, 2);
+  fs.unlinkSync(file);
+  assert.equal(runCli(args).status, 2);
+});
+
 test('approve changes only the selected installation and records the reason', () => {
   const f = fixture();
   const p = f.review().entries.find((entry) => entry.name === 'p');
