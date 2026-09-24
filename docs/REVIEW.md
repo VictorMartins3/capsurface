@@ -750,3 +750,35 @@ When artifact upload is enabled, it retains `.capsurface-snapshot`; keep this hi
 copying or downloading scan inventories. SARIF and source evidence can
 contain dependency source snippets, so artifact access follows repository
 permissions.
+
+## Optional persistent pull request comment
+
+With a reviewed Action commit containing comment support, set `comment-pr: 'true'`
+and grant the job `pull-requests: write`. The default remains off. Use a stable,
+unique `comment-key` for each project or matrix job; keys accept letters,
+numbers, dots, underscores and hyphens (up to 80 characters).
+
+The Action creates a comment when there are findings or a failing/incomplete
+check, updates its own GitHub Actions bot comment when the displayed result
+changes, and updates it to show a passing result when the gate clears. An
+initial clean review with no entries creates no comment. Changing only a
+review ID does not cause an edit; use the full reports for approval IDs.
+The comment distinguishes the proposed-baseline gate from the review against
+the target baseline, so approving a proposed baseline does not erase the
+comparison with the target branch. Long reports are shortened; changes in
+omitted content still invalidate the comment fingerprint.
+
+Only same-repository `pull_request` events are supported. Fork PRs and other
+events retain the job summary without posting. Do not switch to
+`pull_request_target` to bypass token restrictions or run untrusted PR code
+with privileged credentials. The Action uses the job token only in the
+comment step. Missing permissions or API errors produce a warning and leave
+the independent capability gate unchanged.
+
+Configure workflow concurrency per PR and comment key to avoid overlapping
+writers, especially duplicate first comments. The example workflow includes
+a concurrency group. The publisher also verifies the live PR's head and base
+SHA before writing, but GitHub comment updates are not atomic with that check.
+Use the standard `github.token`; custom bot identities are not supported.
+Comments are optional and require a commit containing this feature: the
+example's existing release pin intentionally remains unchanged.

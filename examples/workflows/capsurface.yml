@@ -10,9 +10,16 @@ on:
 
 permissions:
   contents: read
+  # If comment-pr is enabled with a commit that supports it, also grant:
+  # pull-requests: write
   # If upload-sarif is enabled below, also grant:
   # security-events: write
   # actions: read
+
+# Serialize this review job per PR to avoid duplicate first comments.
+concurrency:
+  group: capsurface-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   capability-check:
@@ -42,8 +49,11 @@ jobs:
           upload-sarif: 'false'
           # Optional downloadable reports; retention is 14 days.
           upload-artifact: 'false'
+          # After pinning a reviewed commit containing PR comment support:
+          # comment-pr: 'true'
+          # comment-key: default
 
 # Before adoption, commit an initial capsurface.lock.json on the target branch.
 # The Action reads that baseline from the PR base SHA for Markdown/JSON/SARIF,
 # then checks the proposed baseline separately. The job summary remains
-# available when the capability gate fails. Artifact upload is optional. No PR comment is posted.
+# available when the capability gate fails. Artifact upload and PR comments are optional. Fork PRs use the job summary.
