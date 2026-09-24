@@ -156,7 +156,7 @@ shadow it: `node /absolute/path/to/capsurface/bin/capsurface.js`.
 | Compare two manifests | `capsurface diff before.json after.json` |
 | Explain who introduced a dependency | Add `--lockfile package-lock.json` to `review` |
 | Export SARIF | Add `--format sarif --out review.sarif` to `review` |
-| Review local published archives | [`scan-lock` with npm lockfile v2/v3](docs/REVIEW.md#review-published-tarballs-before-installation) |
+| Review local published archives | [`scan-lock` with npm v2/v3 or pnpm v9 lockfiles](docs/REVIEW.md#review-published-tarballs-before-installation) |
 | Inspect one saved review entry | [`explain --report review.json --id <review-id>`](docs/REVIEW.md#inspect-a-saved-review-entry-by-id) |
 | Resolve supported loader aliases and typed source | [Experimental `--deep`](docs/REVIEW.md#experimental-ast-import-analysis) |
 | Inspect filesystem read/write/removal detail | [Filesystem operations](docs/REVIEW.md#filesystem-operations) |
