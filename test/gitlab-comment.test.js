@@ -1,6 +1,8 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('path');
+const { spawnSync } = require('child_process');
 const { publishGitlabComment, gitlabClient } = require('../lib/gitlab-comment');
 function fixture() {
   const notes = [], writes = [];
@@ -69,13 +71,15 @@ test('GitLab pagination finds an existing note and limits incomplete inventories
 test('GitLab after_script preserves gate artifacts and does not leak credentials on HTTP errors', () => {
   const fs = require('fs'), path = require('path');
   const { spawnSync } = require('child_process');
-  const dir = require('./helpers').mkTmpDir('gitlab-http');
+  const project = require('./helpers').mkTmpDir('gitlab-http');
+  const dir = path.join(project, '.capsurface', 'gitlab');
+  fs.mkdirSync(dir, { recursive: true });
   const f = fixture();
   const statusFile = path.join(dir, 'status.json');
   const statusText = JSON.stringify(f.options.status);
   fs.writeFileSync(statusFile, statusText);
   fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify(f.options.report));
-  const preload = path.join(dir, 'mock.cjs');
+  const preload = path.join(project, 'mock.cjs');
   fs.writeFileSync(preload, `
     const { EventEmitter } = require('events');
     require('https').request = (url, options, callback) => {
@@ -87,10 +91,10 @@ test('GitLab after_script preserves gate artifacts and does not leak credentials
       }); return req;
     };
   `);
-  const call = path.join(dir, 'call.json');
+  const call = path.join(project, 'call.json');
   const args = ['--require', preload, path.join(__dirname, '../bin/gitlab-comment.js')];
   const options = {
-    encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '', CAPSURFACE_OUTPUT: dir,
+    encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '', CAPSURFACE_PROJECT: project, CAPSURFACE_OUTPUT: '.capsurface/gitlab',
       CAPSURFACE_COMMENT_MR: 'true', CAPSURFACE_GITLAB_TOKEN: 'secret-never-print',
       CI_PIPELINE_SOURCE: 'merge_request_event', CI_MERGE_REQUEST_EVENT_TYPE: 'detached',
       CI_PROJECT_ID: '1', CI_MERGE_REQUEST_SOURCE_PROJECT_ID: '1', CI_MERGE_REQUEST_TARGET_PROJECT_ID: '1',
@@ -107,4 +111,17 @@ test('GitLab after_script preserves gate artifacts and does not leak credentials
   options.env.CI_JOB_ID = '5';
   assert.equal(spawnSync(process.execPath, args, options).status, 0);
   assert.equal(fs.existsSync(call), false, 'a retried job cannot publish old artifacts');
+});
+
+test('the comment step refuses an artifact directory outside the project', () => {
+  const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'bin', 'gitlab-comment.js')], {
+    encoding: 'utf8',
+    env: { ...process.env, CAPSURFACE_COMMENT_MR: 'true', CAPSURFACE_GITLAB_TOKEN: 'secret-never-print',
+      CI_PIPELINE_SOURCE: 'merge_request_event', CI_MERGE_REQUEST_EVENT_TYPE: 'detached',
+      CI_PROJECT_ID: '1', CI_MERGE_REQUEST_SOURCE_PROJECT_ID: '1', CI_MERGE_REQUEST_TARGET_PROJECT_ID: '1',
+      CAPSURFACE_OUTPUT: '../outside' },
+  });
+  assert.equal(result.status, 0, 'the comment step must never fail the job');
+  assert.match(result.stdout, /dedicated directory inside the project/);
+  assert.ok(!(result.stdout + result.stderr).includes('secret-never-print'));
 });
