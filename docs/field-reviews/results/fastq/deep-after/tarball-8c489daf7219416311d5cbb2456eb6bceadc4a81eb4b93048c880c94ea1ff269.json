@@ -1,0 +1,170 @@
+{
+  "schemaVersion": 9,
+  "analysisProfile": "source-ast-v1",
+  "astCoverage": {
+    "parser": "acorn@8.15.0+acorn-typescript@1.4.13",
+    "complete": true,
+    "filesAnalyzed": 8,
+    "filesFailed": 0,
+    "errors": []
+  },
+  "installContext": {
+    "schemaVersion": 2,
+    "analysis": "ast-import-graph",
+    "ast": {
+      "parser": "acorn@8.15.0+acorn-typescript@1.4.13",
+      "ecmaVersion": 2022,
+      "filesParsed": 0,
+      "filesFailed": 0
+    },
+    "sourceCoverageComplete": true,
+    "truncated": false,
+    "hooks": []
+  },
+  "sourceContext": {
+    "schemaVersion": 1,
+    "filesAnalyzed": 8,
+    "complete": true,
+    "matchingFiles": 0,
+    "omittedFiles": 0,
+    "matches": []
+  },
+  "contentIntegrity": {
+    "algorithm": "sha256",
+    "scope": "package-files-v1",
+    "complete": true,
+    "digest": "45cfc0b352479b64612a468265cc21dd4c2026c8e8e2847c7dd883d9d836f0c6",
+    "files": 14,
+    "bytes": 41927
+  },
+  "rulesVersion": "4263d17787f6",
+  "name": "fastq",
+  "version": "1.17.1",
+  "scannedAt": "2026-09-24T01:42:23.193Z",
+  "sourceFilesScanned": 8,
+  "sourceFilesSkipped": 0,
+  "coverage": {
+    "complete": true,
+    "filesDiscovered": 8,
+    "filesRead": 8,
+    "bytesRead": 29872,
+    "filesSkipped": 0,
+    "errorCount": 0,
+    "errors": []
+  },
+  "malformedPackageJson": false,
+  "capabilities": {
+    "filesystem": {
+      "present": false,
+      "evidence": []
+    },
+    "filesystemRead": {
+      "present": false,
+      "evidence": []
+    },
+    "filesystemWrite": {
+      "present": false,
+      "evidence": []
+    },
+    "filesystemRemove": {
+      "present": false,
+      "evidence": []
+    },
+    "network": {
+      "present": false,
+      "evidence": [],
+      "endpoints": []
+    },
+    "networkRequest": {
+      "present": false,
+      "evidence": []
+    },
+    "networkConnect": {
+      "present": false,
+      "evidence": []
+    },
+    "networkServer": {
+      "present": false,
+      "evidence": []
+    },
+    "networkDns": {
+      "present": false,
+      "evidence": []
+    },
+    "networkSocket": {
+      "present": false,
+      "evidence": []
+    },
+    "exec": {
+      "present": false,
+      "evidence": []
+    },
+    "execShell": {
+      "present": false,
+      "evidence": []
+    },
+    "execDirect": {
+      "present": false,
+      "evidence": []
+    },
+    "execUnresolved": {
+      "present": false,
+      "evidence": []
+    },
+    "env": {
+      "present": false,
+      "evidence": [],
+      "vars": []
+    },
+    "envEnumeration": {
+      "present": false,
+      "evidence": []
+    },
+    "dynamicEval": {
+      "present": false,
+      "evidence": []
+    },
+    "nativeFfi": {
+      "present": false,
+      "evidence": []
+    },
+    "sensitiveTargets": {
+      "present": false,
+      "evidence": []
+    },
+    "lifecycleScripts": {
+      "present": false,
+      "installTriggering": false,
+      "scripts": {}
+    },
+    "obfuscationSignal": {
+      "present": false,
+      "evidence": []
+    },
+    "skippedLargeFiles": {
+      "present": false,
+      "count": 0,
+      "files": []
+    },
+    "noReadableSource": {
+      "present": false
+    },
+    "unresolvedRequire": {
+      "present": false,
+      "evidence": []
+    },
+    "analysisIncomplete": {
+      "present": false,
+      "reasons": []
+    }
+  },
+  "riskScore": 0,
+  "riskFlags": [],
+  "installPath": "fastq",
+  "scanOrigin": "npm-tarball-v1",
+  "artifact": {
+    "resolved": "https://registry.npmjs.org/fastq/-/fastq-1.17.1.tgz",
+    "integrity": "sha512-sRVD3lWVIXWg6By68ZN7vho9a1pQcN/WBFaAAsDDFzlJjvoGx0P8z7V1t72grFJfJhu3YPZBuu25f7Kaw2jN1w==",
+    "lockfileVersion": 3
+  }
+}
