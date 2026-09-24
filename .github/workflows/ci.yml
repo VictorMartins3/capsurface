@@ -28,7 +28,7 @@ jobs:
       - run: npm run test:integration
 
   deep:
-    name: optional AST analysis (node ${{ matrix.node }}, ${{ matrix.os }})
+    name: optional parsers (node ${{ matrix.node }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -42,8 +42,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
-      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0 acorn-typescript@1.4.13
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund --include=peer acorn@8.15.0 acorn-typescript@1.4.13 yaml@2.9.1
       - run: npm run test:deep
+      - run: npm run test:pnpm
 
   # The test runner needs Node 18; the shipped CLI claims Node 14. Prove it.
   floor:
@@ -68,9 +69,9 @@ jobs:
             exit 1
           fi
 
-      - name: Check optional AST mode on Node 14
+      - name: Check optional AST and pnpm modes on Node 14
         run: |
-          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0 acorn-typescript@1.4.13
+          npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund --include=peer acorn@8.15.0 acorn-typescript@1.4.13 yaml@2.9.1
           node bin/capsurface.js scan examples/malicious-pkg-v2 --deep --out /tmp/deep.json
           node -e "if (require('/tmp/deep.json').installContext.analysis !== 'ast-import-graph') process.exit(1)"
           node <<'JS'
@@ -94,6 +95,12 @@ jobs:
           const scanned = require('./lib/lockfile-scan').scanLockfile(path.join(dir, 'lock.json'), path.join(dir, 'map.json'), path.join(dir, 'manifests'), { deep: true });
           if (scanned.count !== 1 || scanned.incomplete) process.exit(1);
           if (!require('./lib/snapshot').readManifests(path.join(dir, 'manifests'))[0].capabilities.envEnumeration.present) process.exit(1);
+          fs.writeFileSync(path.join(dir, 'pnpm-lock.yaml'), JSON.stringify({ lockfileVersion: '9.0', importers: { '.': {} },
+            packages: { 'archive-smoke@1.0.0': { resolution: { integrity: integrity(archive) } } },
+            snapshots: { 'archive-smoke@1.0.0': {} } }));
+          fs.writeFileSync(path.join(dir, 'pnpm-map.json'), JSON.stringify({ 'archive-smoke@1.0.0': 'package.tgz' }));
+          const pnpm = require('./lib/lockfile-scan').scanLockfile(path.join(dir, 'pnpm-lock.yaml'), path.join(dir, 'pnpm-map.json'), path.join(dir, 'pnpm-manifests'));
+          if (pnpm.count !== 1 || pnpm.incomplete) process.exit(1);
           JS
 
   review-action:

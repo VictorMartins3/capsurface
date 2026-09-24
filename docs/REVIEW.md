@@ -107,6 +107,9 @@ identify stale scanning rules even where the existing gate does not block.
 
 ## Review published tarballs before installation
 
+For pnpm v9, see [pnpm lockfiles](#pnpm-v9-lockfiles) below. The following
+archive-map format and constraints apply to npm lockfiles.
+
 `scan-lock` reads an npm lockfile v2/v3 and a local archive map. It verifies each
 archive against the lockfile's strongest supported integrity digest, scans its
 published content in a private temporary directory and writes the same manifest
@@ -147,7 +150,10 @@ and rescan both sides from the same input kind. Integrity binds bytes to the
 provided lockfile; it is not a publisher signature or proof of benign content.
 
 The archive reader supports gzip-compressed USTAR, per-entry POSIX PAX metadata
-and GNU long names. Files must be below `package/`. It rejects traversal, links,
+and GNU long names, including node-tar atime/ctime header fields. Files must
+share one portable top-level directory, such as `package/` or `babel__core/`;
+that directory is stripped before scanning. Mixed roots are rejected, and the
+extracted package identity must still match the lockfile. It rejects traversal, links,
 special files, conflicting duplicates, nonportable paths and case/Unicode
 collisions. Benign `.` path segments and identical regular-file duplicates are
 normalized; differing duplicate contents fail. File modes/owners are not
@@ -165,6 +171,71 @@ Missing archives, integrity/identity mismatches or extraction failures leave the
 output inventory incomplete, so it cannot be reviewed or approved. Source-level
 coverage failures retain a valid inventory for diagnostics but exit 2 and block
 approval. Temporary extracted files are removed on completion or failure.
+
+### pnpm v9 lockfiles
+
+Files ending in `.yaml` or `.yml` use the pnpm v9 adapter. Install the optional
+YAML parser alongside the tool, never in the inspected project. In a reviewed
+capsurface checkout:
+
+```bash
+npm install --no-save --package-lock=false --ignore-scripts --include=peer yaml@2.9.1
+```
+
+For `--deep`, include `acorn@8.15.0 acorn-typescript@1.4.13` in the same install
+command. YAML parsing requires Node >=14.6, runs in a separate process with a
+five-second timeout and a 256 MiB V8 heap limit, and rejects duplicate keys,
+aliases, custom tags and multiple documents. The default npm workflow does
+not require YAML or access the network. See the [YAML parser documentation](https://eemeli.org/yaml/).
+
+The pnpm archive map uses exact **package IDs**, not guessed registry URLs or
+dependency aliases. Obtain the archives separately and map them as follows:
+
+```json
+{
+  "string_decoder@1.3.0": "archives/string_decoder-1.3.0.tgz",
+  "@types/babel__core@7.20.5": "archives/babel-core-types-7.20.5.tgz"
+}
+```
+
+Every registry package in the lockfile must have an archive, including dev,
+optional and platform-specific dependencies. Integrity and package name/version
+are verified against the lockfile before scanning. Registry URLs are retained
+only when explicitly present in `resolution.tarball`.
+
+```bash
+capsurface scan-lock before/pnpm-lock.yaml --tarballs archives.json --out .capsurface/pnpm-before
+capsurface baseline .capsurface/pnpm-before --out .capsurface/pnpm.lock.json
+capsurface scan-lock pnpm-lock.yaml --tarballs archives.json --out .capsurface/pnpm-after
+capsurface review .capsurface/pnpm-after --baseline .capsurface/pnpm.lock.json
+```
+
+Do not pass a pnpm file to `review --lockfile`; that optional dependency-chain
+resolver still accepts npm JSON only. pnpm metadata comes from the scan's
+`artifact`: `packageId`, exact `snapshotKey`, direct `importers` and `parents`.
+Each reference preserves its dependency alias and kind. These are direct edges,
+not computed root-to-package chains. Markdown shows direct workspace references;
+JSON and SARIF retain both edge lists.
+
+Peer contexts remain separate snapshots. Their synthetic `installPath` is
+`pnpm/` plus the SHA-256 of the snapshot key, not a physical node_modules path.
+Updates with multiple possible predecessors keep the existing conservative
+ambiguity behavior. These manifests use `scanOrigin: pnpm-tarball-v1` and must
+not share baselines with installed-tree or npm-lock tarball scans. Both sides
+must be rescanned after this engine update.
+
+Linked workspaces must resolve to an importer within the lockfile. The command
+scans their registry dependencies, **not project or workspace source files**.
+Git/local packages, patched packages, unsupported resolutions, dangling graph
+references and packages without snapshots fail explicitly. Configuration and
+package-manager dependencies in importers are not supported. Limits include
+10,000 packages, snapshots or importers, 100,000 dependency edges and the shared
+archive budgets above. Missing or unsupported input leaves an incomplete
+inventory rather than a passing partial scan.
+
+Named roots and node-tar timestamp fields are supported, including the archive
+layout in `@types/babel__core@7.20.5`. Other archive restrictions above remain
+in force; unsupported inputs cannot be skipped to produce a passing scan.
 
 ## Accept one installation
 
