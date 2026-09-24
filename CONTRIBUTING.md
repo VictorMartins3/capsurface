@@ -32,6 +32,7 @@ Where to change what:
 | Change what fails the build vs. what is only reported | `lib/diff.js` |
 | Match an installation to its approved predecessor | `lib/comparison.js` |
 | Explain changes or apply a selective approval | `lib/review.js`, `lib/approval.js` |
+| Inspect an entry in a saved review | `lib/explain.js` |
 | Collect and explain file-level capability relationships | `lib/source-context.js`, `lib/scanner.js` |
 | Explain potential import paths from installation scripts | `lib/install-context.js`, `lib/ast-imports.js` |
 | Hash installed content or enforce approval expiry | `lib/content-integrity.js`, `lib/approval-policy.js` |
