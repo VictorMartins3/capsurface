@@ -39,6 +39,7 @@ Where to change what:
 | Explain npm dependency origins | `lib/provenance.js` |
 | Export review results to SARIF | `lib/sarif.js` |
 | Run the GitHub review Action | `action.yml`, `bin/action-review.js` |
+| Run GitLab MR reviews and publish notes | `bin/gitlab-review.js`, `bin/gitlab-comment.js`, `lib/gitlab-comment.js` |
 | Scan lockfile-resolved local archives | `lib/lockfile-scan.js`, `lib/tarball.js` |
 | Read pnpm v9 graphs and isolate YAML parsing | `lib/pnpm-lock.js`, `lib/yaml-worker.js` |
 | Read and publish scan inventories | `lib/snapshot.js` |

@@ -56,7 +56,7 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   const installed = path.dirname(path.dirname(cli));
   const requiredDocs = ['README.md', 'LICENSE', 'CHANGELOG.md', 'CONTRIBUTING.md',
     'SECURITY.md', 'docs/REVIEW.md', 'docs/VERIFICATION.md', 'docs/RELEASING.md',
-    'action.yml', 'examples/workflows/capsurface.yml'];
+    'action.yml', 'examples/workflows/capsurface.yml', 'docs/GITLAB.md', 'examples/workflows/gitlab-ci.yml'];
   for (const file of requiredDocs) {
     assert.ok(fs.existsSync(path.join(installed, file)), `packed package must include ${file}`);
   }
@@ -144,6 +144,26 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   assert.match(fs.readFileSync(path.join(project, 'review.md'), 'utf8'), /Review ID:/);
   const check = ['check', 'manifests', '--baseline', 'capsurface.lock.json', '--fail-on-new'];
   gate(check, 1);
+  function gitlab(name, expected, overrides = {}) {
+    const output = path.join(project, '.capsurface', name);
+    const result = spawnSync(process.execPath, [path.join(installed, 'bin/gitlab-review.js')], {
+      cwd: project, encoding: 'utf8', env: { ...env, CI_PROJECT_DIR: project,
+        CI_PIPELINE_SOURCE: 'merge_request_event', CI_MERGE_REQUEST_EVENT_TYPE: 'detached',
+        CI_PROJECT_ID: '1', CI_MERGE_REQUEST_SOURCE_PROJECT_ID: '1', CI_MERGE_REQUEST_TARGET_PROJECT_ID: '1',
+        CI_MERGE_REQUEST_IID: '2', CI_PIPELINE_ID: '3', CI_JOB_ID: '4', CI_COMMIT_SHA: baseSha,
+        CI_MERGE_REQUEST_TARGET_BRANCH_NAME: 'main', CAPSURFACE_PROJECT: project,
+        CAPSURFACE_BASE_REF: baseSha, CAPSURFACE_OUTPUT: output, CAPSURFACE_DEEP: 'false',
+        CAPSURFACE_FAIL_ON_NEW: 'true', CAPSURFACE_REPORT_ONLY: 'false', ...overrides },
+    });
+    assert.equal(result.status, expected, result.stderr);
+    return output;
+  }
+  const blockedGitlab = gitlab('gitlab-blocked', 1);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(blockedGitlab, 'status.json'))).gate, true);
+  assert.equal(gitlab('gitlab-report-only', 0, { CAPSURFACE_REPORT_ONLY: 'true' }).length > 0, true);
+  const missingGitlab = gitlab('gitlab-missing', 2, { CAPSURFACE_BASELINE: 'missing.json' });
+  assert.equal(JSON.parse(fs.readFileSync(path.join(missingGitlab, 'status.json'))).complete, false);
+  gitlab('gitlab-fork', 2, { CI_MERGE_REQUEST_SOURCE_PROJECT_ID: '9' });
   scan('approve', 'manifests', '--baseline', 'capsurface.lock.json', '--id', changed.id,
     '--reason', 'Reviewed the child process integration');
   gate(check, 1); // Approving the upgrade cannot approve the added package.
@@ -151,6 +171,14 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   scan('approve', 'manifests', '--baseline', 'capsurface.lock.json', '--id', added.id,
     '--reason', 'Reviewed the additional HTTP client');
   gate(check, 0);
+  const approvedGitlab = gitlab('gitlab-approved', 0);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(approvedGitlab, 'status.json'))).gate, false);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(approvedGitlab, 'review.json'))).wouldFail, true,
+    'GitLab proposed approvals must not hide the target-branch comparison');
+  assert.ok(fs.existsSync(path.join(approvedGitlab, 'review.md')));
+  assert.ok(fs.existsSync(path.join(approvedGitlab, 'review.sarif')));
+  assert.equal(JSON.parse(fs.readFileSync(path.join(approvedGitlab, 'manifests/.capsurface-snapshot'))).complete, true);
+  gitlab('gitlab-approved', 2); // Never retain stale artifacts from a reused directory.
   const approvedArgs = ['review', 'manifests', '--baseline', 'capsurface.lock.json'];
   const approved = JSON.parse(gate([...approvedArgs, '--json'], 0));
   assert.equal(approved.entries.length, 0);
@@ -195,5 +223,10 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   assert.equal(JSON.parse(fs.readFileSync(inventory)).complete, true);
   fs.writeFileSync(inventory, JSON.stringify({ schemaVersion: 1, complete: false }));
   gate([...check, '--report-only'], 2);
+  fs.writeFileSync(path.join(project, 'node_modules', 'integration-dep', 'package.json'), '{');
+  const incompleteGitlab = gitlab('gitlab-incomplete', 2, { CAPSURFACE_REPORT_ONLY: 'true' });
+  const incompleteStatus = JSON.parse(fs.readFileSync(path.join(incompleteGitlab, 'status.json')));
+  assert.ok(!incompleteStatus.complete || incompleteStatus.incomplete,
+    'GitLab report-only cannot turn incomplete analysis into a successful review');
   assert.equal(fs.existsSync(marker), false, 'neither lifecycle hooks nor the shadow CLI may execute');
 });

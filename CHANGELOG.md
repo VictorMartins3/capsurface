@@ -7,6 +7,9 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- GitLab integration for detached, same-project merge request pipelines, with
+  target/proposed baseline separation, retained artifacts and an optional
+  persistent MR note. Includes a pipeline example and token setup guidance.
 - `explain --report review.json --id <review-id>` retrieves a single saved
   review entry as JSON, preserving source evidence, provenance and audit
   details. It explicitly reports that freshness has not been checked and
