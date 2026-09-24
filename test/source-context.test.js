@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const { scanPackageDir } = require('../lib/scanner');
-const { buildReview, renderMarkdown } = require('../lib/review');
+const { buildReview, renderMarkdown, reviewId } = require('../lib/review');
 const { renderSarif } = require('../lib/sarif');
 const { diffManifests } = require('../lib/diff');
 const { mkTmpDir, writePackage, runCli } = require('./helpers');
@@ -118,6 +118,7 @@ test('context remains explanatory and does not create a new gate condition', () 
   delete baseline.sourceContext;
   baseline.schemaVersion = 6;
   assert.equal(diffManifests(baseline, manifest).escalated, false);
+  assert.equal(reviewId([], manifest), reviewId([], { ...manifest, scannedAt: 'later' }));
 });
 
 test('Markdown escapes correlation evidence and SARIF retains structured context', () => {

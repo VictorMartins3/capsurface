@@ -312,3 +312,22 @@ test('audit does not attribute a reason from another approval or ambiguous histo
   report = f.review();
   assert.equal(report.audit.installations[0].approval.reason, undefined);
 });
+
+test('audit refuses an approval id or reason embedded in the baseline manifest', () => {
+  const f = fixture();
+  assert.equal(f.approve().status, 0);
+  const lock = f.lock();
+  // approve never writes id or reason into the manifest policy, so a lockfile
+  // carrying them was edited by hand and cannot stand in for an approval record.
+  lock.packages.pkg[0].approval.reason = 'Approved by the security team';
+  lock.packages.pkg[0].approval.id = 'a'.repeat(32);
+  lock.approvals = [];
+  fs.writeFileSync(f.baseline, JSON.stringify(lock));
+  const approval = f.review().audit.installations[0].approval;
+  assert.equal(approval.status, 'applied');
+  assert.equal(approval.reason, undefined, 'an unmatched manifest policy must not supply a reason');
+  assert.equal(approval.id, undefined, 'an unmatched manifest policy must not supply an approval id');
+  const md = runCli(['review', f.out, '--baseline', f.baseline]).stdout;
+  assert.ok(!md.includes('Approved by the security team'));
+  assert.match(md, /Approval reason unavailable in the matched baseline record\./);
+});
