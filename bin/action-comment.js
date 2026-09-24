@@ -20,7 +20,8 @@ async function main() {
   console.log(`PR comment: ${result}. Full results remain in the job summary.`);
 }
 
-main().catch(() => {
+main().catch((error) => {
   // API failures must not replace the independent capability gate or leak tokens.
-  console.log('::warning::Could not update the capsurface PR comment. Check pull-requests write permission; full results remain in the job summary.');
+  // The message names the transport failure only; headers never reach it.
+  console.log(`::warning::Could not update the capsurface PR comment: ${error.message}. Check pull-requests write permission; full results remain in the job summary.`);
 });

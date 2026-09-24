@@ -155,3 +155,10 @@ test('Action wrapper preserves the gate and warns without leaking credentials af
   const attempts = fs.readFileSync(callsFile, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   assert.deepEqual(attempts, [{ method: 'GET', path: '/repos/owner/repo/issues/4/comments' }]);
 });
+
+test('skips a pull request whose fork repository was deleted', async () => {
+  const f = fixture();
+  f.context.event.pull_request.head.repo = null;
+  assert.equal(await publishComment(f.context), 'skipped-event');
+  assert.equal(f.writes.length, 0);
+});
