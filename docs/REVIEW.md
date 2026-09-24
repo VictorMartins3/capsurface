@@ -316,6 +316,15 @@ compiler transforms or dependency code execute.
 
 Each file has a 1 MiB source budget, 100,000-token/node/evaluation budgets and
 32 levels of static value resolution, in addition to the graph's existing limits.
+Parsing and AST analysis run in a separate Node process with a five-second
+wall-clock timeout per invocation (including startup), a 256 MiB V8 old-space
+limit and a 16 MiB output limit. Timeout kills and reaps the helper and records
+`ast-timeout`; crashes or invalid output record `ast-worker-error`. Both make
+coverage incomplete. The old-space limit is not a total process memory cap.
+This adds startup overhead per invocation; install-graph and package-wide
+analysis may inspect a file separately. There is no total package scan deadline.
+Inspected code is sent as data and never executed. This process boundary is a
+resource safeguard, not a sandbox for running untrusted code.
 
 Deep context has `installContext.schemaVersion: 2`, `analysis: ast-import-graph`
 and `ast` metadata with parser identities and processed/unavailable file counts.

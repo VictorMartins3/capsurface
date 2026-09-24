@@ -5,6 +5,14 @@ Notable user-facing changes are recorded here using
 
 ## [Unreleased]
 
+### Fixed
+
+- Deep scans run parsing and AST analysis in a separate process with a five-second
+  timeout per analysis. Timeouts and worker failures mark coverage incomplete
+  instead of hanging the scanner or approving a partial result. This adds process
+  startup overhead and changes the engine fingerprint; existing baselines require
+  review. No total scan deadline is imposed.
+
 ## [0.1.0] - 2026-09-22
 
 First public release.
