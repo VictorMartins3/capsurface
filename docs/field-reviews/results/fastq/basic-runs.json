@@ -1,0 +1,80 @@
+[
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "scan-lock",
+      "before-lock.json",
+      "--tarballs",
+      "before-tarballs.json",
+      "--out",
+      "basic-before"
+    ],
+    "elapsedSeconds": 0.124,
+    "exitCode": 0,
+    "stdout": "Scanned 1 locked tarball(s) without installing packages or running scripts.\nManifests written to basic-before/\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "scan-lock",
+      "after-lock.json",
+      "--tarballs",
+      "after-tarballs.json",
+      "--out",
+      "basic-after"
+    ],
+    "elapsedSeconds": 0.046,
+    "exitCode": 0,
+    "stdout": "Scanned 1 locked tarball(s) without installing packages or running scripts.\nManifests written to basic-after/\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "baseline",
+      "basic-before",
+      "--out",
+      "basic-baseline.json"
+    ],
+    "elapsedSeconds": 0.031,
+    "exitCode": 0,
+    "stdout": "Baselined 1 manifest(s) across 1 package name(s) into basic-baseline.json\nReview this file into version control as the approved capability surface.\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "review",
+      "basic-after",
+      "--baseline",
+      "basic-baseline.json",
+      "--format",
+      "json"
+    ],
+    "elapsedSeconds": 0.03,
+    "exitCode": 0,
+    "stdout": "{\n  \"schemaVersion\": 1,\n  \"rulesVersion\": \"4263d17787f6\",\n  \"manifestsScanned\": 1,\n  \"wouldFail\": false,\n  \"entries\": [\n    {\n      \"id\": \"7cfe92a6b190bdc5afbcd356768bd219\",\n      \"name\": \"fastq\",\n      \"installPath\": \"fastq\",\n      \"baselineVersion\": \"1.17.0\",\n      \"currentVersion\": \"1.17.1\",\n      \"match\": {\n        \"kind\": \"install-path\",\n        \"candidates\": [\n          {\n            \"version\": \"1.17.0\",\n            \"installPath\": \"fastq\"\n          }\n        ]\n      },\n      \"newPackage\": false,\n      \"escalated\": false,\n      \"requiresApproval\": false,\n      \"rulesChanged\": false,\n      \"blocking\": false,\n      \"blockingReasons\": [],\n      \"approvable\": true,\n      \"contentIntegrity\": {\n        \"algorithm\": \"sha256\",\n        \"scope\": \"package-files-v1\",\n        \"complete\": true,\n        \"digest\": \"45cfc0b352479b64612a468265cc21dd4c2026c8e8e2847c7dd883d9d836f0c6\",\n        \"files\": 14,\n        \"bytes\": 41927\n      },\n      \"changes\": [],\n      \"newRiskFlags\": [],\n      \"capabilities\": [],\n      \"coverage\": {\n        \"complete\": true,\n        \"filesDiscovered\": 8,\n        \"filesRead\": 8,\n        \"bytesRead\": 29872,\n        \"filesSkipped\": 0,\n        \"errorCount\": 0,\n        \"errors\": []\n      },\n      \"analysisProfile\": \"source-v1\",\n      \"scanOrigin\": \"npm-tarball-v1\",\n      \"artifact\": {\n        \"resolved\": \"https://registry.npmjs.org/fastq/-/fastq-1.17.1.tgz\",\n        \"integrity\": \"sha512-sRVD3lWVIXWg6By68ZN7vho9a1pQcN/WBFaAAsDDFzlJjvoGx0P8z7V1t72grFJfJhu3YPZBuu25f7Kaw2jN1w==\",\n        \"lockfileVersion\": 3\n      },\n      \"sourceContext\": {\n        \"schemaVersion\": 1,\n        \"filesAnalyzed\": 8,\n        \"complete\": true,\n        \"matchingFiles\": 0,\n        \"omittedFiles\": 0,\n        \"matches\": []\n      },\n      \"installContext\": {\n        \"schemaVersion\": 1,\n        \"analysis\": \"literal-import-graph\",\n        \"sourceCoverageComplete\": true,\n        \"truncated\": false,\n        \"hooks\": []\n      },\n      \"evidence\": []\n    }\n  ],\n  \"baseline\": \"basic-baseline.json\",\n  \"reportOnly\": false\n}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "review",
+      "basic-after",
+      "--baseline",
+      "basic-baseline.json",
+      "--format",
+      "markdown"
+    ],
+    "elapsedSeconds": 0.03,
+    "exitCode": 0,
+    "stdout": "# Dependency capability review\n\n1 installation(s) scanned. 1 entry/entries to review.\n\nThe capability check would pass.\n\n## fastq: 1\\.17\\.0 \u2192 1\\.17\\.1\n\nReview ID: `7cfe92a6b190bdc5afbcd356768bd219`\n\nInstallation: fastq. Match: install\\-path.\n\nInformational change; no new blocking capability.\n\nContent SHA-256: `45cfc0b352479b64612a468265cc21dd4c2026c8e8e2847c7dd883d9d836f0c6`.\n\nCoverage: 8 source file(s) read; 0 skipped; 0 I/O error(s).\n\nInput: verified npm tarball. Integrity: sha512\\-sRVD3lWVIXWg6By68ZN7vho9a1pQcN/WBFaAAsDDFzlJjvoGx0P8z7V1t72grFJfJhu3YPZBuu25f7Kaw2jN1w==.\n\nFile correlation:\n\nNetwork and credential indicators occur together in 0 analyzed source file\\(s\\)\\.\nFile co\\-occurrence does not establish execution order or data transfer\\. Missing matches do not prove absence of those behaviors\\.\n\nSelective approval binds one installation to its version and installed file content. It does not certify safety or execute scripts.\n",
+    "stderr": ""
+  }
+]

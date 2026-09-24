@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 9,
+  "analysisProfile": "source-ast-v1",
+  "astCoverage": {
+    "parser": "acorn@8.15.0+acorn-typescript@1.4.13",
+    "complete": true,
+    "filesAnalyzed": 1,
+    "filesFailed": 0,
+    "errors": []
+  },
+  "installContext": {
+    "schemaVersion": 2,
+    "analysis": "ast-import-graph",
+    "ast": {
+      "parser": "acorn@8.15.0+acorn-typescript@1.4.13",
+      "ecmaVersion": 2022,
+      "filesParsed": 0,
+      "filesFailed": 0
+    },
+    "sourceCoverageComplete": true,
+    "truncated": false,
+    "hooks": []
+  },
+  "sourceContext": {
+    "schemaVersion": 1,
+    "filesAnalyzed": 1,
+    "complete": true,
+    "matchingFiles": 0,
+    "omittedFiles": 0,
+    "matches": []
+  },
+  "contentIntegrity": {
+    "algorithm": "sha256",
+    "scope": "package-files-v1",
+    "complete": true,
+    "digest": "5031c2dea402656dbaa0ff24eb4bee231b4fbc003054b78e449d3562fa2bd55d",
+    "files": 5,
+    "bytes": 12243
+  },
+  "rulesVersion": "4263d17787f6",
+  "name": "write-file-atomic",
+  "version": "2.4.3",
+  "scannedAt": "2026-09-24T01:42:23.771Z",
+  "sourceFilesScanned": 1,
+  "sourceFilesSkipped": 0,
+  "coverage": {
+    "complete": true,
+    "filesDiscovered": 1,
+    "filesRead": 1,
+    "bytesRead": 6983,
+    "filesSkipped": 0,
+    "errorCount": 0,
+    "errors": []
+  },
+  "malformedPackageJson": false,
+  "capabilities": {
+    "filesystem": {
+      "present": true,
+      "evidence": [
+        {
+          "file": "index.js",
+          "line": 40,
+          "snippet": "fs.unlinkSync(typeof tmpfile === 'function' ? tmpfile() : tmpfile)",
+          "pattern": "/\\bfs\\.(readFile|writeFile|appendFile|unlink|readdir|mkdir|rmdir|rm|stat|createReadStream|createWriteStream|readFileSync|writeFileSync|unlinkSync|readdirSync|existsSync)\\b/"
+        },
+        {
+          "file": "index.js",
+          "line": 85,
+          "snippet": "fs.stat(truename, function (err, stats) {",
+          "pattern": "/\\bfs\\.(readFile|writeFile|appendFile|unlink|readdir|mkdir|rmdir|rm|stat|createReadStream|createWriteStream|readFileSync|writeFileSync|unlinkSync|readdirSync|existsSync)\\b/"
+        },
+        {
+          "file": "index.js",
+          "line": 168,
+          "snippet": "fs.unlink(tmpfile, function () {",
+          "pattern": "/\\bfs\\.(readFile|writeFile|appendFile|unlink|readdir|mkdir|rmdir|rm|stat|createReadStream|createWriteStream|readFileSync|writeFileSync|unlinkSync|readdirSync|existsSync)\\b/"
+        }
+      ]
+    },
+    "filesystemRead": {
+      "present": false,
+      "evidence": []
+    },
+    "filesystemWrite": {
+      "present": false,
+      "evidence": []
+    },
+    "filesystemRemove": {
+      "present": false,
+      "evidence": []
+    },
+    "network": {
+      "present": false,
+      "evidence": [],
+      "endpoints": []
+    },
+    "networkRequest": {
+      "present": false,
+      "evidence": []
+    },
+    "networkConnect": {
+      "present": false,
+      "evidence": []
+    },
+    "networkServer": {
+      "present": false,
+      "evidence": []
+    },
+    "networkDns": {
+      "present": false,
+      "evidence": []
+    },
+    "networkSocket": {
+      "present": false,
+      "evidence": []
+    },
+    "exec": {
+      "present": false,
+      "evidence": []
+    },
+    "execShell": {
+      "present": false,
+      "evidence": []
+    },
+    "execDirect": {
+      "present": false,
+      "evidence": []
+    },
+    "execUnresolved": {
+      "present": false,
+      "evidence": []
+    },
+    "env": {
+      "present": false,
+      "evidence": [],
+      "vars": []
+    },
+    "envEnumeration": {
+      "present": false,
+      "evidence": []
+    },
+    "dynamicEval": {
+      "present": false,
+      "evidence": []
+    },
+    "nativeFfi": {
+      "present": false,
+      "evidence": []
+    },
+    "sensitiveTargets": {
+      "present": false,
+      "evidence": []
+    },
+    "lifecycleScripts": {
+      "present": false,
+      "installTriggering": false,
+      "scripts": {}
+    },
+    "obfuscationSignal": {
+      "present": false,
+      "evidence": []
+    },
+    "skippedLargeFiles": {
+      "present": false,
+      "count": 0,
+      "files": []
+    },
+    "noReadableSource": {
+      "present": false
+    },
+    "unresolvedRequire": {
+      "present": false,
+      "evidence": []
+    },
+    "analysisIncomplete": {
+      "present": false,
+      "reasons": []
+    }
+  },
+  "riskScore": 2,
+  "riskFlags": [],
+  "installPath": "write-file-atomic",
+  "scanOrigin": "npm-tarball-v1",
+  "artifact": {
+    "resolved": "https://registry.npmjs.org/write-file-atomic/-/write-file-atomic-2.4.3.tgz",
+    "integrity": "sha512-GaETH5wwsX+GcnzhPgKcKjJ6M2Cq3/iZp1WyY/X1CSqrW+jVNM9Y7D8EC2sM4ZG/V8wZlSniJnCKWPmBYAucRQ==",
+    "lockfileVersion": 3
+  }
+}

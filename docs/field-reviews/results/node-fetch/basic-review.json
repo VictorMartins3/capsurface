@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "rulesVersion": "4263d17787f6",
+  "manifestsScanned": 1,
+  "wouldFail": false,
+  "entries": [
+    {
+      "id": "0f34909df32ccfd093014e0059667576",
+      "name": "node-fetch",
+      "installPath": "node-fetch",
+      "baselineVersion": "2.6.6",
+      "currentVersion": "2.6.7",
+      "match": {
+        "kind": "install-path",
+        "candidates": [
+          {
+            "version": "2.6.6",
+            "installPath": "node-fetch"
+          }
+        ]
+      },
+      "newPackage": false,
+      "escalated": false,
+      "requiresApproval": false,
+      "rulesChanged": false,
+      "blocking": false,
+      "blockingReasons": [],
+      "approvable": true,
+      "contentIntegrity": {
+        "algorithm": "sha256",
+        "scope": "package-files-v1",
+        "complete": true,
+        "digest": "0ca15028cef30fc276796c1c851662eab34d2b3dec34e19809be3a1b363274d5",
+        "files": 7,
+        "bytes": 152240
+      },
+      "changes": [],
+      "newRiskFlags": [],
+      "capabilities": [
+        "network",
+        "lifecycleScripts"
+      ],
+      "coverage": {
+        "complete": true,
+        "filesDiscovered": 4,
+        "filesRead": 4,
+        "bytesRead": 129034,
+        "filesSkipped": 0,
+        "errorCount": 0,
+        "errors": []
+      },
+      "analysisProfile": "source-v1",
+      "scanOrigin": "npm-tarball-v1",
+      "artifact": {
+        "resolved": "https://registry.npmjs.org/node-fetch/-/node-fetch-2.6.7.tgz",
+        "integrity": "sha512-ZjMPFEfVx5j+y2yF35Kzx5sF7kDzxuDj6ziH4FFbOp87zKDZNx8yExJIb05OGF4Nlt9IHFIMBkRl41VdvcNdbQ==",
+        "lockfileVersion": 3
+      },
+      "sourceContext": {
+        "schemaVersion": 1,
+        "filesAnalyzed": 4,
+        "complete": true,
+        "matchingFiles": 0,
+        "omittedFiles": 0,
+        "matches": []
+      },
+      "installContext": {
+        "schemaVersion": 1,
+        "analysis": "literal-import-graph",
+        "sourceCoverageComplete": true,
+        "truncated": false,
+        "hooks": []
+      },
+      "evidence": []
+    }
+  ],
+  "baseline": "basic-baseline.json",
+  "reportOnly": false
+}

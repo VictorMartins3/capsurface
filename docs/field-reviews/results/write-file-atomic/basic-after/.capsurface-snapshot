@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "complete": true,
+  "manifests": [
+    {
+      "file": "tarball-6b015175bbdb568b3b42095185e555dae60c8827ca424d79ca3efbd14084ea6e.json",
+      "sha256": "57e9c90eb1e8e4b0833e891fca8ba97b86951638b7dc460c8ae9c069bc54d580"
+    }
+  ]
+}

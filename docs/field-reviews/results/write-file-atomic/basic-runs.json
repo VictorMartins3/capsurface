@@ -1,0 +1,80 @@
+[
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "scan-lock",
+      "before-lock.json",
+      "--tarballs",
+      "before-tarballs.json",
+      "--out",
+      "basic-before"
+    ],
+    "elapsedSeconds": 0.059,
+    "exitCode": 0,
+    "stdout": "Scanned 1 locked tarball(s) without installing packages or running scripts.\nManifests written to basic-before/\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "scan-lock",
+      "after-lock.json",
+      "--tarballs",
+      "after-tarballs.json",
+      "--out",
+      "basic-after"
+    ],
+    "elapsedSeconds": 0.041,
+    "exitCode": 0,
+    "stdout": "Scanned 1 locked tarball(s) without installing packages or running scripts.\nManifests written to basic-after/\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "baseline",
+      "basic-before",
+      "--out",
+      "basic-baseline.json"
+    ],
+    "elapsedSeconds": 0.029,
+    "exitCode": 0,
+    "stdout": "Baselined 1 manifest(s) across 1 package name(s) into basic-baseline.json\nReview this file into version control as the approved capability surface.\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "review",
+      "basic-after",
+      "--baseline",
+      "basic-baseline.json",
+      "--format",
+      "json"
+    ],
+    "elapsedSeconds": 0.03,
+    "exitCode": 1,
+    "stdout": "{\n  \"schemaVersion\": 1,\n  \"rulesVersion\": \"4263d17787f6\",\n  \"manifestsScanned\": 1,\n  \"wouldFail\": true,\n  \"entries\": [\n    {\n      \"id\": \"240263f7fc7fc91f483e707b4159b6a9\",\n      \"name\": \"write-file-atomic\",\n      \"installPath\": \"write-file-atomic\",\n      \"baselineVersion\": \"2.4.3\",\n      \"currentVersion\": \"3.0.3\",\n      \"match\": {\n        \"kind\": \"install-path\",\n        \"candidates\": [\n          {\n            \"version\": \"2.4.3\",\n            \"installPath\": \"write-file-atomic\"\n          }\n        ]\n      },\n      \"newPackage\": false,\n      \"escalated\": true,\n      \"requiresApproval\": true,\n      \"rulesChanged\": false,\n      \"blocking\": true,\n      \"blockingReasons\": [\n        \"\\\"Filesystem write\\\" was not present in 2.4.3 but appears in 3.0.3.\",\n        \"\\\"Filesystem removal\\\" was not present in 2.4.3 but appears in 3.0.3.\"\n      ],\n      \"approvable\": true,\n      \"contentIntegrity\": {\n        \"algorithm\": \"sha256\",\n        \"scope\": \"package-files-v1\",\n        \"complete\": true,\n        \"digest\": \"fdee769180ada4b9f14120f54f75189e731a4a86c4aa8addc7f0ebec7d3fa36f\",\n        \"files\": 5,\n        \"bytes\": 12787\n      },\n      \"changes\": [\n        {\n          \"type\": \"capability-added\",\n          \"category\": \"filesystemWrite\",\n          \"label\": \"Filesystem write\",\n          \"escalates\": true,\n          \"detail\": \"\\\"Filesystem write\\\" was not present in 2.4.3 but appears in 3.0.3.\"\n        },\n        {\n          \"type\": \"capability-added\",\n          \"category\": \"filesystemRemove\",\n          \"label\": \"Filesystem removal\",\n          \"escalates\": true,\n          \"detail\": \"\\\"Filesystem removal\\\" was not present in 2.4.3 but appears in 3.0.3.\"\n        }\n      ],\n      \"newRiskFlags\": [],\n      \"capabilities\": [\n        \"filesystem\",\n        \"filesystemWrite\",\n        \"filesystemRemove\"\n      ],\n      \"coverage\": {\n        \"complete\": true,\n        \"filesDiscovered\": 1,\n        \"filesRead\": 1,\n        \"bytesRead\": 6812,\n        \"filesSkipped\": 0,\n        \"errorCount\": 0,\n        \"errors\": []\n      },\n      \"analysisProfile\": \"source-v1\",\n      \"scanOrigin\": \"npm-tarball-v1\",\n      \"artifact\": {\n        \"resolved\": \"https://registry.npmjs.org/write-file-atomic/-/write-file-atomic-3.0.3.tgz\",\n        \"integrity\": \"sha512-AvHcyZ5JnSfq3ioSyjrBkH9yW4m7Ayk8/9My/DD9onKeu/94fwrMocemO2QAJFAlnnDN+ZDS+ZjAR5ua1/PV/Q==\",\n        \"lockfileVersion\": 3\n      },\n      \"sourceContext\": {\n        \"schemaVersion\": 1,\n        \"filesAnalyzed\": 1,\n        \"complete\": true,\n        \"matchingFiles\": 0,\n        \"omittedFiles\": 0,\n        \"matches\": []\n      },\n      \"installContext\": {\n        \"schemaVersion\": 1,\n        \"analysis\": \"literal-import-graph\",\n        \"sourceCoverageComplete\": true,\n        \"truncated\": false,\n        \"hooks\": []\n      },\n      \"evidence\": [\n        {\n          \"category\": \"filesystemWrite\",\n          \"file\": \"index.js\",\n          \"line\": 113,\n          \"snippet\": \"await promisify(fs.write)(fd, data, 0, data.length, 0)\",\n          \"pattern\": \"node:fs.write\"\n        },\n        {\n          \"category\": \"filesystemWrite\",\n          \"file\": \"index.js\",\n          \"line\": 115,\n          \"snippet\": \"await promisify(fs.write)(fd, String(data), 0, String(options.encoding || 'utf8'))\",\n          \"pattern\": \"node:fs.write\"\n        },\n        {\n          \"category\": \"filesystemWrite\",\n          \"file\": \"index.js\",\n          \"line\": 141,\n          \"snippet\": \"await promisify(fs.rename)(tmpfile, truename)\",\n          \"pattern\": \"node:fs.rename\"\n        },\n        {\n          \"category\": \"filesystemWrite\",\n          \"file\": \"index.js\",\n          \"line\": 213,\n          \"snippet\": \"fs.writeSync(fd, data, 0, data.length, 0)\",\n          \"pattern\": \"node:fs.writeSync\"\n        },\n        {\n          \"category\": \"filesystemWrite\",\n          \"file\": \"index.js\",\n          \"line\": 215,\n          \"snippet\": \"fs.writeSync(fd, String(data), 0, String(options.encoding || 'utf8'))\",\n          \"pattern\": \"node:fs.writeSync\"\n        },\n        {\n          \"category\": \"filesystemRemove\",\n          \"file\": \"index.js\",\n          \"line\": 43,\n          \"snippet\": \"fs.unlinkSync(typeof tmpfile === 'function' ? tmpfile() : tmpfile)\",\n          \"pattern\": \"node:fs.unlinkSync\"\n        },\n        {\n          \"category\": \"filesystemRemove\",\n          \"file\": \"index.js\",\n          \"line\": 150,\n          \"snippet\": \"await promisify(fs.unlink)(tmpfile).catch(() => {})\",\n          \"pattern\": \"node:fs.unlink\"\n        }\n      ]\n    }\n  ],\n  \"baseline\": \"basic-baseline.json\",\n  \"reportOnly\": false\n}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "review",
+      "basic-after",
+      "--baseline",
+      "basic-baseline.json",
+      "--format",
+      "markdown"
+    ],
+    "elapsedSeconds": 0.03,
+    "exitCode": 1,
+    "stdout": "# Dependency capability review\n\n1 installation(s) scanned. 1 entry/entries to review.\n\n**The capability check would fail.**\n\n## write\\-file\\-atomic: 2\\.4\\.3 \u2192 3\\.0\\.3\n\nReview ID: `240263f7fc7fc91f483e707b4159b6a9`\n\nInstallation: write\\-file\\-atomic. Match: install\\-path.\n\n**Explicit review required.**\n\nBlocking reasons:\n\n- \"Filesystem write\" was not present in 2\\.4\\.3 but appears in 3\\.0\\.3\\.\n- \"Filesystem removal\" was not present in 2\\.4\\.3 but appears in 3\\.0\\.3\\.\n\nContent SHA-256: `fdee769180ada4b9f14120f54f75189e731a4a86c4aa8addc7f0ebec7d3fa36f`.\n\n- **capability\\-added:** \"Filesystem write\" was not present in 2\\.4\\.3 but appears in 3\\.0\\.3\\.\n- **capability\\-added:** \"Filesystem removal\" was not present in 2\\.4\\.3 but appears in 3\\.0\\.3\\.\n\nCoverage: 1 source file(s) read; 0 skipped; 0 I/O error(s).\n\nInput: verified npm tarball. Integrity: sha512\\-AvHcyZ5JnSfq3ioSyjrBkH9yW4m7Ayk8/9My/DD9onKeu/94fwrMocemO2QAJFAlnnDN\\+ZDS\\+ZjAR5ua1/PV/Q==.\n\nFile correlation:\n\nNetwork and credential indicators occur together in 0 analyzed source file\\(s\\)\\.\nFile co\\-occurrence does not establish execution order or data transfer\\. Missing matches do not prove absence of those behaviors\\.\n\nSource evidence:\n\n- index\\.js:113 (filesystemWrite): await promisify\\(fs\\.write\\)\\(fd, data, 0, data\\.length, 0\\)\n- index\\.js:115 (filesystemWrite): await promisify\\(fs\\.write\\)\\(fd, String\\(data\\), 0, String\\(options\\.encoding \\|\\| 'utf8'\\)\\)\n- index\\.js:141 (filesystemWrite): await promisify\\(fs\\.rename\\)\\(tmpfile, truename\\)\n- index\\.js:213 (filesystemWrite): fs\\.writeSync\\(fd, data, 0, data\\.length, 0\\)\n- index\\.js:215 (filesystemWrite): fs\\.writeSync\\(fd, String\\(data\\), 0, String\\(options\\.encoding \\|\\| 'utf8'\\)\\)\n- index\\.js:43 (filesystemRemove): fs\\.unlinkSync\\(typeof tmpfile === 'function' ? tmpfile\\(\\) : tmpfile\\)\n- index\\.js:150 (filesystemRemove): await promisify\\(fs\\.unlink\\)\\(tmpfile\\)\\.catch\\(\\(\\) =&gt; \\{\\}\\)\n\nSelective approval binds one installation to its version and installed file content. It does not certify safety or execute scripts.\n",
+    "stderr": ""
+  }
+]
