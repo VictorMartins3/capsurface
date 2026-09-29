@@ -162,6 +162,7 @@ shadow it: `node /absolute/path/to/capsurface/bin/capsurface.js`.
 | Resolve supported loader aliases and typed source | [Experimental `--deep`](docs/REVIEW.md#experimental-ast-import-analysis) |
 | Inspect filesystem read/write/removal detail | [Filesystem operations](docs/REVIEW.md#filesystem-operations) |
 | Inspect shell/direct process launches | [Process launch modes](docs/REVIEW.md#process-launch-modes) |
+| Review new credential paths to fetch | [Experimental local flow comparison](docs/REVIEW.md#credential-flows-to-fetch) |
 | Inspect network operations and bulk environment access | [Environment and network operations](docs/REVIEW.md#environment-and-network-operations) |
 
 `capsurface allowlist .capsurface/manifests` emits a candidate npm script
