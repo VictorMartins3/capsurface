@@ -61,6 +61,8 @@ test('models reject overrides, mutation, escaping objects and custom serializati
     `${source} const JSON={stringify:x=>'safe'}; fetch(url,{body:JSON.stringify({token})});`,
     `${source} const j=JSON; j.stringify=x=>'safe'; fetch(url,{body:JSON.stringify({token})});`,
     `${source} change(JSON); fetch(url,{body:JSON.stringify({token})});`,
+    `${source} globalThis.JSON.stringify=x=>'safe'; fetch(url,{body:JSON.stringify({token})});`,
+    `${source} const holder={namespace:JSON}; change(holder); fetch(url,{body:JSON.stringify({token})});`,
     `${source} fetch(url,{body:JSON.stringify({token,toJSON(){return 'safe'}})});`,
     `${source} fetch(url,{body:JSON.stringify({token},()=> 'safe')});`,
     `${source} const data={token}; const other=data; other.token='safe'; fetch(url,{body:JSON.stringify(data)});`,
