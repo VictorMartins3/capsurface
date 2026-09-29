@@ -92,7 +92,7 @@ runs:
         retention-days: 14
     - name: Upload dependency review to Code Scanning
       if: inputs.upload-sarif == 'true'
-      uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
+      uses: github/codeql-action/upload-sarif@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4.38.1
       with:
         sarif_file: ${{ steps.review.outputs.sarif }}
         category: capsurface/dependency-review
