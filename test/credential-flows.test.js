@@ -101,6 +101,7 @@ test('bounded local summaries trace return values and direct fetch wrappers at c
   assert.equal(flow.sink.destination.path,'/path');
   assert.equal(flows(`${source} function id(x){return 'safe';} fetch(url,{body:id(token)});`).length,0);
   assert.equal(flows(`${source} function id(x){return x;} function id(x){return 'safe';} fetch(url,{body:id(token)});`).length,0);
+  assert.equal(flows(`${source} var id=x=>'safe'; function id(x){return x;} fetch(url,{body:id(token)});`).length,0);
 });
 
 test('unsupported wrappers report gaps, and recursive summaries stay bounded', () => {
