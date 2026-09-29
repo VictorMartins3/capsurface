@@ -35,6 +35,41 @@ block unapproved new packages. `--report-only` preserves the findings but
 returns 0 for a completed comparison; invalid snapshots still fail.
 The report file is written even when the comparison returns 1.
 
+## Inspect a saved review entry by ID
+
+Save a JSON review and use its exact entry ID to retrieve one installation's
+details. `explain` reads local data only; it neither scans nor approves anything.
+
+```bash
+capsurface review .capsurface/after --baseline .capsurface/before.lock.json --json --out review.json
+# review may exit 1 for findings; its JSON file is still written.
+capsurface explain --report review.json --id <review-id> --json
+capsurface explain --report review.json --id <review-id> --out explanation.json
+```
+
+Output is JSON by default; `--json` is optional. `entry` preserves the saved
+review entry, including changes, blocking reasons, evidence before/after,
+coverage, integrity, source context and available provenance. A matching
+installation audit is included as `audit` when uniquely available. Fields
+absent from an older report are not invented. npm chains require generating
+the original review with `--lockfile`; pnpm references come from its artifact.
+
+`source.freshness` is always `not-checked`. Paths recorded inside a report are
+descriptive and are never followed. The command can inspect old reports after
+their scan inputs have been removed. Report data is not authenticated or
+recomputed, and `entry.approvable` only describes the saved review. Use a fresh
+`review` and the normal `approve` workflow for an actual approval decision.
+
+`idKind: review-content-id` identifies the existing ID tied to comparison
+content, not a permanent issue ID across package upgrades. Full IDs are
+required; missing or duplicate matches are errors. Only review JSON schema 1
+is accepted, not `check --json`, SARIF or Markdown. Input is bounded to 64 MiB.
+
+Exit 0 means the lookup succeeded, even if `report.wouldFail` or
+`entry.blocking` is true. Invalid input exits 2 with no JSON on stdout. `--out`
+writes the result without a status message on stdout and cannot overwrite
+the source report. This command does not replace a CI gate.
+
 ## Audit passing comparisons and approvals
 
 Every JSON review includes `audit.installations`, even when `entries` is empty.

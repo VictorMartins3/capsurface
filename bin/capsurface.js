@@ -539,6 +539,28 @@ function cmdReview(args) {
   if (report.wouldFail && !report.reportOnly) process.exitCode = 1;
 }
 
+function cmdExplain(args) {
+  const { positional, flags } = parseFlags(args);
+  if (positional.length || Object.keys(flags).some((key) => !['report', 'id', 'json', 'out'].includes(key)) ||
+      typeof flags.report !== 'string' || !flags.report || typeof flags.id !== 'string' ||
+      (flags.json !== undefined && flags.json !== true) ||
+      (flags.out !== undefined && (typeof flags.out !== 'string' || !flags.out))) {
+    die('usage: capsurface explain --report <review.json> --id <review-id> [--json] [--out <file>]');
+  }
+  const { readBounded } = require('../lib/tarball');
+  const { explainReview } = require('../lib/explain');
+  const result = explainReview(JSON.parse(readBounded(flags.report, 64 * 1024 * 1024)), flags.id);
+  const text = JSON.stringify(result, null, 2) + '\n';
+  if (flags.out) {
+    if (fs.existsSync(flags.out)) {
+      const source = fs.statSync(flags.report), target = fs.statSync(flags.out);
+      if (source.dev === target.dev && source.ino === target.ino) die('--out must not overwrite the source report');
+    }
+    fs.mkdirSync(path.dirname(flags.out), { recursive: true });
+    fs.writeFileSync(flags.out, text);
+  } else process.stdout.write(text);
+}
+
 function cmdApprove(args) {
   const { positional, flags } = parseFlags(args);
   if (!positional[0]) die('usage: capsurface approve <manifests-dir> --baseline <file> --id <review-id> --reason <text>');
@@ -574,6 +596,8 @@ function main() {
       return cmdCheck(rest);
     case 'review':
       return cmdReview(rest);
+    case 'explain':
+      return cmdExplain(rest);
     case 'approve':
       return cmdApprove(rest);
     case 'diff':
@@ -591,6 +615,7 @@ Usage:
   capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only] [--json]
   capsurface review <manifests-dir> --baseline <file> [--json | --format markdown|json|sarif] [--lockfile <package-lock.json>] [--project-root <dir>] [--out <file>] [--fail-on-new] [--report-only]
   capsurface approve <manifests-dir> --baseline <file> --id <review-id> --reason <text> [--expires <UTC-timestamp>]
+  capsurface explain --report <review.json> --id <review-id> [--json] [--out <file>]
   capsurface diff <baseline-manifest.json> <current-manifest.json>
   capsurface allowlist <manifests-dir> [--format npm|pnpm|json] [--names] [--out <file>]
 `);

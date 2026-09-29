@@ -7,6 +7,10 @@ Notable user-facing changes are recorded here using
 
 ### Added
 
+- `explain --report review.json --id <review-id>` retrieves a single saved
+  review entry as JSON, preserving source evidence, provenance and audit
+  details. It explicitly reports that freshness has not been checked and
+  does not change approvals or gate results.
 - Before/after source evidence in dependency reviews, with separate evidence
   for ambiguous predecessors and explicit limits when an indicator was not
   detected. Rescan both snapshots with the updated engine before approval.

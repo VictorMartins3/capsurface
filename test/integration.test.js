@@ -122,6 +122,10 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   assert.equal(changed.provenance.status, 'resolved');
   assert.deepEqual(changed.provenance.chain.map((p) => p.name), ['integration-project', 'integration-dep']);
   assert.ok(changed.evidence.some((e) => e.file === 'index.js'));
+  fs.writeFileSync(path.join(project, 'saved-review.json'), JSON.stringify(before));
+  const explained = JSON.parse(scan('explain', '--report', 'saved-review.json', '--id', changed.id, '--json'));
+  assert.deepEqual(explained.entry, changed, 'the packed CLI retains provenance and all source evidence');
+  assert.equal(explained.source.freshness, 'not-checked');
   assert.equal(changed.baselineEvidence.length, 1);
   assert.equal(changed.baselineEvidence[0].version, '1.0.0');
   assert.equal(changed.baselineEvidence[0].analysisIncomplete, false);
