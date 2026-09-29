@@ -803,8 +803,10 @@ No dependency code is executed.
 
 The analyzer follows immutable local `const` aliases, string concatenation and
 template interpolation within one function (or at module scope). It recognizes
-credential values in the URL, an inline options object's `body`, and inline
-`headers` values. Lexical shadowing, binding reassignment and supported TypeScript
+credential values in the URL, local immutable options objects, and `headers`
+values. Models also cover destructuring, simple JSON serialization, Buffer
+encoding and flat URLSearchParams objects. Custom serializers, escaped or
+mutated objects and overridden builtins remain unresolved. Lexical shadowing, binding reassignment and supported TypeScript
 wrappers use the same rules as the import analyzer. Duplicate object keys follow
 last-property semantics; spreads, getters and unresolved keys prevent object
 attribution. The source name is a credential naming heuristic, not proof its value
@@ -812,18 +814,31 @@ is a secret.
 
 A newly observed path requires review even if the package already had the same
 network and environment indicators. Comparison uses the file, credential name,
-sink API and argument, including occurrence counts. Formatting, line shifts and
+sink API, argument, resolved request origin/path and method, including
+occurrence counts. A changed path on the same host can therefore require review
+when a credential flow is attached to that request. Formatting, line shifts and
 local alias renaming alone do not create new paths. Moving a path to another
 function in the same file with the same signature and count is not distinguished.
 A baseline without this field yields `credential-flow-unreviewed` when paths are
 found; rescan both versions with the same engine to compare them.
 
-This first version does not follow mutable variables, object aliases, destructured
-credential values, user function calls, cross-function or cross-file flows,
-credential files, imported HTTP clients, or encodings and other transformations.
+Simple synchronous local functions with identifier parameters and a single
+return or call can be summarized through up to four active calls. Paths retain
+parameter and call-site evidence. Async/generator functions, default/rest
+parameters, mutations, multi-statement bodies and recursive summaries remain
+unresolved. The model does not prove that a recorded call is reachable.
+
+Mutable values, general user function calls, cross-file flows, credential files and
+imported HTTP clients remain outside the resolved model. Unsupported operations
+with identifiable credential origins at fetch inputs are retained in
+`credentialFlows.unresolved`. New unresolved paths require review; an identical
+reviewed gap does not block again. These leads do not establish a data flow.
+File/parsing coverage is separate from value-analysis coverage, and the absence
+of gaps does not imply complete JavaScript semantics.
 Control-flow feasibility and runtime mutation through unknown calls are not
 modeled. Files with recognized environment-property writes omit flow attribution
-and record `environment-mutation` in `credentialFlows.errors`. Source or parser
+and record `environment-mutation` in `credentialFlows.errors`. A newly unavailable
+file with previously reviewed flow evidence requires review. Source or parser
 failures and skipped files count toward `filesUnavailable`. Absence of paths is
 inconclusive. A recorded path does not prove execution, transmission or malicious
 intent; authentication code may legitimately produce findings.
