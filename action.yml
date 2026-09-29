@@ -25,6 +25,12 @@ inputs:
   report-only:
     description: Report capability changes without failing the gate. Invalid scans still fail.
     default: 'false'
+  comment-pr:
+    description: Maintain a PR comment for same-repository pull_request events. Requires pull-requests write; forks use the job summary.
+    default: 'false'
+  comment-key:
+    description: Stable unique comment key for this job or project (letters, numbers, dots, underscores and hyphens).
+    default: default
   upload-sarif:
     description: Upload to GitHub Code Scanning when supported and enabled. Requires security-events write.
     default: 'false'
@@ -66,6 +72,16 @@ runs:
         CAPSURFACE_DEEP: ${{ inputs.deep }}
         CAPSURFACE_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
       run: node "$GITHUB_ACTION_PATH/bin/action-review.js"
+    - name: Update dependency review comment
+      if: inputs.comment-pr == 'true'
+      shell: bash
+      env:
+        CAPSURFACE_COMMENT_TOKEN: ${{ github.token }}
+        CAPSURFACE_COMMENT_KEY: ${{ inputs.comment-key }}
+        CAPSURFACE_COMMENT_REPORT: ${{ steps.review.outputs.json }}
+        CAPSURFACE_COMMENT_GATE: ${{ steps.review.outputs.would-fail }}
+        CAPSURFACE_COMMENT_INCOMPLETE: ${{ steps.review.outputs.analysis-incomplete }}
+      run: node "$GITHUB_ACTION_PATH/bin/action-comment.js"
     - name: Retain dependency review
       if: inputs.upload-artifact == 'true'
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

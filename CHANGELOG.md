@@ -21,6 +21,9 @@ Notable user-facing changes are recorded here using
 - An audit of all current installations in JSON, Markdown and SARIF reviews,
   including unchanged packages and the status, reason and expiry of matching
   baseline approvals. Audit information does not change gate decisions.
+- Opt-in persistent GitHub Actions PR comments through `comment-pr` and
+  `comment-key`. Same-repository PRs reuse a bot comment; unchanged reports
+  produce no edit. Comment failures preserve the job summary and gate result.
 
 ### Fixed
 
