@@ -1,0 +1,40 @@
+# Copy this job into .gitlab-ci.yml. Set CAPSURFACE_REF to a reviewed, full
+# capsurface commit SHA containing the GitLab integration (not v0.1.0).
+capsurface-review:
+  image: node:22-bookworm
+  stage: test
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_EVENT_TYPE == "detached" && $CI_PROJECT_ID == $CI_MERGE_REQUEST_SOURCE_PROJECT_ID && $CI_PROJECT_ID == $CI_MERGE_REQUEST_TARGET_PROJECT_ID'
+  variables:
+    GIT_DEPTH: "0"
+    CAPSURFACE_REF: "REPLACE_WITH_REVIEWED_40_CHARACTER_COMMIT_SHA"
+    CAPSURFACE_TOOL: "$CI_PROJECT_DIR/.capsurface-tool"
+    CAPSURFACE_OUTPUT: ".capsurface/gitlab"
+    CAPSURFACE_DEEP: "false"
+    CAPSURFACE_FAIL_ON_NEW: "true"
+    CAPSURFACE_REPORT_ONLY: "false"
+    CAPSURFACE_COMMENT_MR: "false"
+    CAPSURFACE_COMMENT_KEY: "default"
+  resource_group: "capsurface-$CI_MERGE_REQUEST_IID"
+  interruptible: true
+  before_script:
+    - test "${#CAPSURFACE_REF}" -eq 40
+    - 'case "$CAPSURFACE_REF" in *[!a-f0-9]*) exit 2;; esac'
+    - git clone --no-checkout https://github.com/VictorMartins3/capsurface.git "$CAPSURFACE_TOOL"
+    - git -C "$CAPSURFACE_TOOL" checkout --detach "$CAPSURFACE_REF"
+    - npm ci --ignore-scripts --no-audit --no-fund
+    - |
+      if [ "$CAPSURFACE_DEEP" = "true" ]; then
+        npm install --prefix "$CAPSURFACE_TOOL" --no-save --package-lock=false --ignore-scripts --include=peer --no-audit --no-fund acorn@8.15.0 acorn-typescript@1.4.13
+      fi
+  script:
+    - git fetch --no-tags origin "refs/heads/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME:refs/remotes/origin/capsurface-target"
+    - export CAPSURFACE_BASE_REF="$(git rev-parse refs/remotes/origin/capsurface-target)"
+    - node "$CAPSURFACE_TOOL/bin/gitlab-review.js"
+  after_script:
+    - node "$CAPSURFACE_TOOL/bin/gitlab-comment.js"
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - .capsurface/gitlab/
