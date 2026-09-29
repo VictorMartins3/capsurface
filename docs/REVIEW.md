@@ -848,3 +848,18 @@ limits of 10,000 tracing visits, depth 32, 100 findings per file and 200 per pac
 Exceeding those limits marks the scan incomplete and prevents approval. Basic
 scanning has no flow field and still requires no parser. These changes update the
 engine fingerprint, so existing baselines need review.
+
+### Deep analysis execution and cache
+
+Scans batch up to 64 sources, flushing at roughly 4 MiB of source text. A
+supervisor reuses a parser subprocess within each batch and enforces the
+five-second deadline per file. It kills and reaps a failed parser before
+continuing with the next file. Single-source batches retain the direct worker.
+Parser processes receive only platform/path/temp environment variables.
+
+An in-memory cache retains at most 128 AST-analysis results and 8 MiB of
+serialized results. Keys include source bytes, filename, module mode, parser
+identity and the engine fingerprint. Results are copied on read; failed parses
+and worker failures are not cached. Module/package context is resolved before
+lookup. Nothing is persisted between CLI invocations, and the cache stores no
+approvals or cross-file resolution decisions.

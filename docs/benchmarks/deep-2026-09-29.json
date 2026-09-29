@@ -1,0 +1,213 @@
+{
+  "environment": {
+    "node": "v26.8.1",
+    "cpu": "Apple M5",
+    "platform": "darwin"
+  },
+  "cases": [
+    {
+      "name": "synthetic-50",
+      "version": "1",
+      "integrity": {
+        "algorithm": "sha256",
+        "scope": "package-files-v1",
+        "complete": true,
+        "digest": "dd82c626b2152350f882c7c2d18e62fdc1b841bd2cd674e497e7263de6fe40c6",
+        "files": 51,
+        "bytes": 4114
+      },
+      "files": 50,
+      "astComplete": true,
+      "coverage": {
+        "before": {
+          "complete": true,
+          "ast": {
+            "parser": "acorn@8.15.0+acorn-typescript@1.4.13",
+            "complete": true,
+            "filesAnalyzed": 50,
+            "filesFailed": 0,
+            "errors": []
+          }
+        },
+        "afterCold": {
+          "complete": true,
+          "ast": {
+            "parser": "acorn@8.15.0+acorn-typescript@1.4.13",
+            "complete": true,
+            "filesAnalyzed": 50,
+            "filesFailed": 0,
+            "errors": []
+          }
+        }
+      },
+      "samplesMs": {
+        "before": [
+          1361.499333,
+          1325.363042,
+          1312.222291
+        ],
+        "afterCold": [
+          61.20220799999993,
+          61.89316699999995,
+          58.59050000000025
+        ],
+        "afterWarm": [
+          1.8800830000000133,
+          1.7786670000000413,
+          1.6323749999992287
+        ]
+      },
+      "medianMs": {
+        "before": 1325.363042,
+        "afterCold": 61.20220799999993,
+        "afterWarm": 1.7786670000000413
+      }
+    },
+    {
+      "name": "commander",
+      "version": "15.0.0",
+      "integrity": {
+        "algorithm": "sha256",
+        "scope": "package-files-v1",
+        "complete": true,
+        "digest": "62ad1b66c34ce1b32fd79b0188ee08251c0899c3b9dd5f7def11464ac06178ed",
+        "files": 9,
+        "bytes": 162675
+      },
+      "files": 8,
+      "astComplete": false,
+      "coverage": {
+        "before": {
+          "complete": false,
+          "ast": {
+            "parser": "acorn@8.15.0+acorn-typescript@1.4.13",
+            "complete": false,
+            "filesAnalyzed": 8,
+            "filesFailed": 1,
+            "errors": [
+              {
+                "file": "typings/index.d.ts",
+                "line": 38,
+                "reason": "ast-parse-error"
+              }
+            ]
+          }
+        },
+        "afterCold": {
+          "complete": false,
+          "ast": {
+            "parser": "acorn@8.15.0+acorn-typescript@1.4.13",
+            "complete": false,
+            "filesAnalyzed": 8,
+            "filesFailed": 1,
+            "errors": [
+              {
+                "file": "typings/index.d.ts",
+                "line": 38,
+                "reason": "ast-parse-error"
+              }
+            ]
+          }
+        }
+      },
+      "samplesMs": {
+        "before": [
+          276.5060830000002,
+          262.8440839999994,
+          269.63416700000016
+        ],
+        "afterCold": [
+          102.35708400000021,
+          95.01558399999976,
+          96.37120899999991
+        ],
+        "afterWarm": [
+          45.80695800000012,
+          47.16070800000034,
+          47.51795799999945
+        ]
+      },
+      "medianMs": {
+        "before": 269.63416700000016,
+        "afterCold": 96.37120899999991,
+        "afterWarm": 47.16070800000034
+      }
+    },
+    {
+      "name": "koa",
+      "version": "3.2.1",
+      "integrity": {
+        "algorithm": "sha256",
+        "scope": "package-files-v1",
+        "complete": true,
+        "digest": "24834c610dfddc0bac898631e4c532499e1d61bbe903ca3f3fa831dd3b85ef18",
+        "files": 9,
+        "bytes": 46984
+      },
+      "files": 8,
+      "astComplete": false,
+      "coverage": {
+        "before": {
+          "complete": false,
+          "ast": {
+            "parser": "acorn@8.15.0+acorn-typescript@1.4.13",
+            "complete": false,
+            "filesAnalyzed": 8,
+            "filesFailed": 1,
+            "errors": [
+              {
+                "file": "lib/context.js",
+                "line": 1,
+                "reason": "ast-resource-limit"
+              }
+            ]
+          }
+        },
+        "afterCold": {
+          "complete": false,
+          "ast": {
+            "parser": "acorn@8.15.0+acorn-typescript@1.4.13",
+            "complete": false,
+            "filesAnalyzed": 8,
+            "filesFailed": 1,
+            "errors": [
+              {
+                "file": "lib/context.js",
+                "line": 1,
+                "reason": "ast-resource-limit"
+              }
+            ]
+          }
+        }
+      },
+      "samplesMs": {
+        "before": [
+          240.42383299999983,
+          234.86333300000024,
+          236.710959
+        ],
+        "afterCold": [
+          67.58362500000021,
+          67.01995799999986,
+          66.20387500000015
+        ],
+        "afterWarm": [
+          33.71674999999959,
+          33.71374999999989,
+          33.27904200000012
+        ]
+      },
+      "medianMs": {
+        "before": 236.710959,
+        "afterCold": 67.01995799999986,
+        "afterWarm": 33.71374999999989
+      }
+    }
+  ],
+  "caveats": [
+    "Three runs per mode; one machine; warm filesystem cache.",
+    "Cold means the in-memory AST cache is cleared. Worker startup is included.",
+    "Current engine has additional flow models; this is an end-to-end comparison, not equivalent parser work.",
+    "No peak process-tree memory measurements."
+  ]
+}
