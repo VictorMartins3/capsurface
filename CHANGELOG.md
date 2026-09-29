@@ -15,6 +15,8 @@ Notable user-facing changes are recorded here using
   mutation, escaping objects and overridden builtins.
 - Summaries for simple local credential wrappers and return functions, with
   parameter/call-site evidence and explicit limits on recursion and function shape.
+- Batched deep analysis with per-file timeouts and parser restart after failure,
+  plus a bounded in-memory cache of context-independent analysis results.
 
 - GitLab integration for detached, same-project merge request pipelines, with
   target/proposed baseline separation, retained artifacts and an optional
