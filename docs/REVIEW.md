@@ -844,7 +844,9 @@ inconclusive. A recorded path does not prove execution, transmission or maliciou
 intent; authentication code may legitimately produce findings.
 
 Flow tracing shares the isolated AST worker's five-second deadline. It also has
-limits of 10,000 tracing visits, depth 32, 100 findings per file and 200 per package.
+limits of 10,000 tracing visits and depth 32. Resolved and unresolved paths
+each have limits of 100 per file and 200 per package. File diagnostics retain
+up to 200 entries; exceeding that limit also makes coverage incomplete.
 Exceeding those limits marks the scan incomplete and prevents approval. Basic
 scanning has no flow field and still requires no parser. These changes update the
 engine fingerprint, so existing baselines need review.

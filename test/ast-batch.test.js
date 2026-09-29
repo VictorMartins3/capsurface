@@ -9,6 +9,22 @@ const { astImports, loadParser, createAstAnalyzer } = require('../lib/ast-import
 const cache = require('../lib/ast-cache');
 const { mkTmpDir } = require('./helpers');
 
+test('file diagnostics beyond the display sample still reveal lost credential evidence', () => {
+  const root=mkTmpDir('batch-flow-errors');
+  try {
+    fs.writeFileSync(path.join(root,'package.json'),'{"name":"diagnostics","version":"1"}');
+    for(let i=0;i<12;i++)fs.writeFileSync(path.join(root,`a${i}.js`),"process.env.UNRELATED='x';");
+    const target=path.join(root,'z.js'), code="fetch(url,{body:process.env.NPM_TOKEN});";
+    fs.writeFileSync(target,code);
+    const {scanPackageDir}=require('../lib/scanner');
+    const before=scanPackageDir(root,{deep:true});
+    fs.writeFileSync(target,code+"process.env.UNRELATED='x';");
+    const after=scanPackageDir(root,{deep:true});
+    assert.equal(after.credentialFlows.errors.length,13);
+    assert.ok(require('../lib/diff').diffManifests(before,after).changes.some(c=>c.type==='credential-flow-visibility-lost'));
+  } finally {fs.rmSync(root,{recursive:true,force:true});cache.clear();}
+});
+
 test('batch worker preserves each result and does not execute inspected code', () => {
   const parser = loadParser();
   const inputs = ["globalThis.marker='not executed'; throw Error('never execute');", 'const =',
