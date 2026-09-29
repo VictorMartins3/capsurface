@@ -1,0 +1,50 @@
+[
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "scan-lock",
+      "before-lock.json",
+      "--tarballs",
+      "before-tarballs.json",
+      "--out",
+      "deep-before",
+      "--deep"
+    ],
+    "elapsedSeconds": 0.194,
+    "exitCode": 2,
+    "stdout": "Scanned 1 locked tarball(s) without installing packages or running scripts.\nManifests written to deep-before/\n",
+    "stderr": "1 package(s) have incomplete analysis.\n"
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "scan-lock",
+      "after-lock.json",
+      "--tarballs",
+      "after-tarballs.json",
+      "--out",
+      "deep-after",
+      "--deep"
+    ],
+    "elapsedSeconds": 0.189,
+    "exitCode": 2,
+    "stdout": "Scanned 1 locked tarball(s) without installing packages or running scripts.\nManifests written to deep-after/\n",
+    "stderr": "1 package(s) have incomplete analysis.\n"
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "baseline",
+      "deep-before",
+      "--out",
+      "deep-baseline.json"
+    ],
+    "elapsedSeconds": 0.028,
+    "exitCode": 2,
+    "stdout": "",
+    "stderr": "capsurface: cannot approve incomplete analysis; fix the coverage errors and scan again\n"
+  }
+]

@@ -1,0 +1,80 @@
+[
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "scan-lock",
+      "before-lock.json",
+      "--tarballs",
+      "before-tarballs.json",
+      "--out",
+      "basic-before"
+    ],
+    "elapsedSeconds": 0.082,
+    "exitCode": 0,
+    "stdout": "Scanned 1 locked tarball(s) without installing packages or running scripts.\nManifests written to basic-before/\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "scan-lock",
+      "after-lock.json",
+      "--tarballs",
+      "after-tarballs.json",
+      "--out",
+      "basic-after"
+    ],
+    "elapsedSeconds": 0.052,
+    "exitCode": 0,
+    "stdout": "Scanned 1 locked tarball(s) without installing packages or running scripts.\nManifests written to basic-after/\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "baseline",
+      "basic-before",
+      "--out",
+      "basic-baseline.json"
+    ],
+    "elapsedSeconds": 0.029,
+    "exitCode": 0,
+    "stdout": "Baselined 1 manifest(s) across 1 package name(s) into basic-baseline.json\nReview this file into version control as the approved capability surface.\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "review",
+      "basic-after",
+      "--baseline",
+      "basic-baseline.json",
+      "--format",
+      "json"
+    ],
+    "elapsedSeconds": 0.029,
+    "exitCode": 0,
+    "stdout": "{\n  \"schemaVersion\": 1,\n  \"rulesVersion\": \"4263d17787f6\",\n  \"manifestsScanned\": 1,\n  \"wouldFail\": false,\n  \"entries\": [\n    {\n      \"id\": \"0f34909df32ccfd093014e0059667576\",\n      \"name\": \"node-fetch\",\n      \"installPath\": \"node-fetch\",\n      \"baselineVersion\": \"2.6.6\",\n      \"currentVersion\": \"2.6.7\",\n      \"match\": {\n        \"kind\": \"install-path\",\n        \"candidates\": [\n          {\n            \"version\": \"2.6.6\",\n            \"installPath\": \"node-fetch\"\n          }\n        ]\n      },\n      \"newPackage\": false,\n      \"escalated\": false,\n      \"requiresApproval\": false,\n      \"rulesChanged\": false,\n      \"blocking\": false,\n      \"blockingReasons\": [],\n      \"approvable\": true,\n      \"contentIntegrity\": {\n        \"algorithm\": \"sha256\",\n        \"scope\": \"package-files-v1\",\n        \"complete\": true,\n        \"digest\": \"0ca15028cef30fc276796c1c851662eab34d2b3dec34e19809be3a1b363274d5\",\n        \"files\": 7,\n        \"bytes\": 152240\n      },\n      \"changes\": [],\n      \"newRiskFlags\": [],\n      \"capabilities\": [\n        \"network\",\n        \"lifecycleScripts\"\n      ],\n      \"coverage\": {\n        \"complete\": true,\n        \"filesDiscovered\": 4,\n        \"filesRead\": 4,\n        \"bytesRead\": 129034,\n        \"filesSkipped\": 0,\n        \"errorCount\": 0,\n        \"errors\": []\n      },\n      \"analysisProfile\": \"source-v1\",\n      \"scanOrigin\": \"npm-tarball-v1\",\n      \"artifact\": {\n        \"resolved\": \"https://registry.npmjs.org/node-fetch/-/node-fetch-2.6.7.tgz\",\n        \"integrity\": \"sha512-ZjMPFEfVx5j+y2yF35Kzx5sF7kDzxuDj6ziH4FFbOp87zKDZNx8yExJIb05OGF4Nlt9IHFIMBkRl41VdvcNdbQ==\",\n        \"lockfileVersion\": 3\n      },\n      \"sourceContext\": {\n        \"schemaVersion\": 1,\n        \"filesAnalyzed\": 4,\n        \"complete\": true,\n        \"matchingFiles\": 0,\n        \"omittedFiles\": 0,\n        \"matches\": []\n      },\n      \"installContext\": {\n        \"schemaVersion\": 1,\n        \"analysis\": \"literal-import-graph\",\n        \"sourceCoverageComplete\": true,\n        \"truncated\": false,\n        \"hooks\": []\n      },\n      \"evidence\": []\n    }\n  ],\n  \"baseline\": \"basic-baseline.json\",\n  \"reportOnly\": false\n}\n",
+    "stderr": ""
+  },
+  {
+    "command": [
+      "node",
+      "<capsurface>/bin/capsurface.js",
+      "review",
+      "basic-after",
+      "--baseline",
+      "basic-baseline.json",
+      "--format",
+      "markdown"
+    ],
+    "elapsedSeconds": 0.028,
+    "exitCode": 0,
+    "stdout": "# Dependency capability review\n\n1 installation(s) scanned. 1 entry/entries to review.\n\nThe capability check would pass.\n\n## node\\-fetch: 2\\.6\\.6 \u2192 2\\.6\\.7\n\nReview ID: `0f34909df32ccfd093014e0059667576`\n\nInstallation: node\\-fetch. Match: install\\-path.\n\nInformational change; no new blocking capability.\n\nContent SHA-256: `0ca15028cef30fc276796c1c851662eab34d2b3dec34e19809be3a1b363274d5`.\n\nCoverage: 4 source file(s) read; 0 skipped; 0 I/O error(s).\n\nInput: verified npm tarball. Integrity: sha512\\-ZjMPFEfVx5j\\+y2yF35Kzx5sF7kDzxuDj6ziH4FFbOp87zKDZNx8yExJIb05OGF4Nlt9IHFIMBkRl41VdvcNdbQ==.\n\nFile correlation:\n\nNetwork and credential indicators occur together in 0 analyzed source file\\(s\\)\\.\nFile co\\-occurrence does not establish execution order or data transfer\\. Missing matches do not prove absence of those behaviors\\.\n\nSelective approval binds one installation to its version and installed file content. It does not certify safety or execute scripts.\n",
+    "stderr": ""
+  }
+]

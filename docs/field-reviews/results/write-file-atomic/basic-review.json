@@ -1,0 +1,148 @@
+{
+  "schemaVersion": 1,
+  "rulesVersion": "4263d17787f6",
+  "manifestsScanned": 1,
+  "wouldFail": true,
+  "entries": [
+    {
+      "id": "240263f7fc7fc91f483e707b4159b6a9",
+      "name": "write-file-atomic",
+      "installPath": "write-file-atomic",
+      "baselineVersion": "2.4.3",
+      "currentVersion": "3.0.3",
+      "match": {
+        "kind": "install-path",
+        "candidates": [
+          {
+            "version": "2.4.3",
+            "installPath": "write-file-atomic"
+          }
+        ]
+      },
+      "newPackage": false,
+      "escalated": true,
+      "requiresApproval": true,
+      "rulesChanged": false,
+      "blocking": true,
+      "blockingReasons": [
+        "\"Filesystem write\" was not present in 2.4.3 but appears in 3.0.3.",
+        "\"Filesystem removal\" was not present in 2.4.3 but appears in 3.0.3."
+      ],
+      "approvable": true,
+      "contentIntegrity": {
+        "algorithm": "sha256",
+        "scope": "package-files-v1",
+        "complete": true,
+        "digest": "fdee769180ada4b9f14120f54f75189e731a4a86c4aa8addc7f0ebec7d3fa36f",
+        "files": 5,
+        "bytes": 12787
+      },
+      "changes": [
+        {
+          "type": "capability-added",
+          "category": "filesystemWrite",
+          "label": "Filesystem write",
+          "escalates": true,
+          "detail": "\"Filesystem write\" was not present in 2.4.3 but appears in 3.0.3."
+        },
+        {
+          "type": "capability-added",
+          "category": "filesystemRemove",
+          "label": "Filesystem removal",
+          "escalates": true,
+          "detail": "\"Filesystem removal\" was not present in 2.4.3 but appears in 3.0.3."
+        }
+      ],
+      "newRiskFlags": [],
+      "capabilities": [
+        "filesystem",
+        "filesystemWrite",
+        "filesystemRemove"
+      ],
+      "coverage": {
+        "complete": true,
+        "filesDiscovered": 1,
+        "filesRead": 1,
+        "bytesRead": 6812,
+        "filesSkipped": 0,
+        "errorCount": 0,
+        "errors": []
+      },
+      "analysisProfile": "source-v1",
+      "scanOrigin": "npm-tarball-v1",
+      "artifact": {
+        "resolved": "https://registry.npmjs.org/write-file-atomic/-/write-file-atomic-3.0.3.tgz",
+        "integrity": "sha512-AvHcyZ5JnSfq3ioSyjrBkH9yW4m7Ayk8/9My/DD9onKeu/94fwrMocemO2QAJFAlnnDN+ZDS+ZjAR5ua1/PV/Q==",
+        "lockfileVersion": 3
+      },
+      "sourceContext": {
+        "schemaVersion": 1,
+        "filesAnalyzed": 1,
+        "complete": true,
+        "matchingFiles": 0,
+        "omittedFiles": 0,
+        "matches": []
+      },
+      "installContext": {
+        "schemaVersion": 1,
+        "analysis": "literal-import-graph",
+        "sourceCoverageComplete": true,
+        "truncated": false,
+        "hooks": []
+      },
+      "evidence": [
+        {
+          "category": "filesystemWrite",
+          "file": "index.js",
+          "line": 113,
+          "snippet": "await promisify(fs.write)(fd, data, 0, data.length, 0)",
+          "pattern": "node:fs.write"
+        },
+        {
+          "category": "filesystemWrite",
+          "file": "index.js",
+          "line": 115,
+          "snippet": "await promisify(fs.write)(fd, String(data), 0, String(options.encoding || 'utf8'))",
+          "pattern": "node:fs.write"
+        },
+        {
+          "category": "filesystemWrite",
+          "file": "index.js",
+          "line": 141,
+          "snippet": "await promisify(fs.rename)(tmpfile, truename)",
+          "pattern": "node:fs.rename"
+        },
+        {
+          "category": "filesystemWrite",
+          "file": "index.js",
+          "line": 213,
+          "snippet": "fs.writeSync(fd, data, 0, data.length, 0)",
+          "pattern": "node:fs.writeSync"
+        },
+        {
+          "category": "filesystemWrite",
+          "file": "index.js",
+          "line": 215,
+          "snippet": "fs.writeSync(fd, String(data), 0, String(options.encoding || 'utf8'))",
+          "pattern": "node:fs.writeSync"
+        },
+        {
+          "category": "filesystemRemove",
+          "file": "index.js",
+          "line": 43,
+          "snippet": "fs.unlinkSync(typeof tmpfile === 'function' ? tmpfile() : tmpfile)",
+          "pattern": "node:fs.unlinkSync"
+        },
+        {
+          "category": "filesystemRemove",
+          "file": "index.js",
+          "line": 150,
+          "snippet": "await promisify(fs.unlink)(tmpfile).catch(() => {})",
+          "pattern": "node:fs.unlink"
+        }
+      ]
+    }
+  ],
+  "baseline": "basic-baseline.json",
+  "reportOnly": false
+}

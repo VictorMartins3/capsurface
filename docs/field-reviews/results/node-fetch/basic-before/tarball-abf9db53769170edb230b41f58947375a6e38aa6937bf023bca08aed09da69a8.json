@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 9,
+  "analysisProfile": "source-v1",
+  "installContext": {
+    "schemaVersion": 1,
+    "analysis": "literal-import-graph",
+    "sourceCoverageComplete": true,
+    "truncated": false,
+    "hooks": []
+  },
+  "sourceContext": {
+    "schemaVersion": 1,
+    "filesAnalyzed": 4,
+    "complete": true,
+    "matchingFiles": 0,
+    "omittedFiles": 0,
+    "matches": []
+  },
+  "contentIntegrity": {
+    "algorithm": "sha256",
+    "scope": "package-files-v1",
+    "complete": true,
+    "digest": "ce9990108de0731163a59b5e1d23235f26c669b68f2e6a4bbf01e27b7930ec1e",
+    "files": 7,
+    "bytes": 149298
+  },
+  "rulesVersion": "4263d17787f6",
+  "name": "node-fetch",
+  "version": "2.6.6",
+  "scannedAt": "2026-09-24T01:42:24.254Z",
+  "sourceFilesScanned": 4,
+  "sourceFilesSkipped": 0,
+  "coverage": {
+    "complete": true,
+    "filesDiscovered": 4,
+    "filesRead": 4,
+    "bytesRead": 126253,
+    "filesSkipped": 0,
+    "errorCount": 0,
+    "errors": []
+  },
+  "malformedPackageJson": false,
+  "capabilities": {
+    "filesystem": {
+      "present": false,
+      "evidence": []
+    },
+    "filesystemRead": {
+      "present": false,
+      "evidence": []
+    },
+    "filesystemWrite": {
+      "present": false,
+      "evidence": []
+    },
+    "filesystemRemove": {
+      "present": false,
+      "evidence": []
+    },
+    "network": {
+      "present": true,
+      "evidence": [
+        {
+          "file": "lib/index.es.js",
+          "line": 4,
+          "snippet": "import http from 'http';",
+          "pattern": "/\\bfrom\\s+['\"](node:)?(https?|http2|net|dgram|tls|dns)['\"]/"
+        },
+        {
+          "file": "lib/index.es.js",
+          "line": 7,
+          "snippet": "import https from 'https';",
+          "pattern": "/\\bfrom\\s+['\"](node:)?(https?|http2|net|dgram|tls|dns)['\"]/"
+        },
+        {
+          "file": "lib/index.js",
+          "line": 8,
+          "snippet": "var http = _interopDefault(require('http'));",
+          "pattern": "/\\b(?:require|import|_load)\\s*(?:\\?\\.\\s*)?\\(\\s*['\"`](node:)?(https?|http2|net|dgram|tls|dns)['\"`]\\s*\\)/"
+        },
+        {
+          "file": "lib/index.js",
+          "line": 11,
+          "snippet": "var https = _interopDefault(require('https'));",
+          "pattern": "/\\b(?:require|import|_load)\\s*(?:\\?\\.\\s*)?\\(\\s*['\"`](node:)?(https?|http2|net|dgram|tls|dns)['\"`]\\s*\\)/"
+        },
+        {
+          "file": "lib/index.mjs",
+          "line": 2,
+          "snippet": "import http from 'http';",
+          "pattern": "/\\bfrom\\s+['\"](node:)?(https?|http2|net|dgram|tls|dns)['\"]/"
+        }
+      ],
+      "endpoints": [
+        "https://github.com/bitinn/node-fetch"
+      ]
+    },
+    "networkRequest": {
+      "present": false,
+      "evidence": []
+    },
+    "networkConnect": {
+      "present": false,
+      "evidence": []
+    },
+    "networkServer": {
+      "present": false,
+      "evidence": []
+    },
+    "networkDns": {
+      "present": false,
+      "evidence": []
+    },
+    "networkSocket": {
+      "present": false,
+      "evidence": []
+    },
+    "exec": {
+      "present": false,
+      "evidence": []
+    },
+    "execShell": {
+      "present": false,
+      "evidence": []
+    },
+    "execDirect": {
+      "present": false,
+      "evidence": []
+    },
+    "execUnresolved": {
+      "present": false,
+      "evidence": []
+    },
+    "env": {
+      "present": false,
+      "evidence": [],
+      "vars": []
+    },
+    "envEnumeration": {
+      "present": false,
+      "evidence": []
+    },
+    "dynamicEval": {
+      "present": false,
+      "evidence": []
+    },
+    "nativeFfi": {
+      "present": false,
+      "evidence": []
+    },
+    "sensitiveTargets": {
+      "present": false,
+      "evidence": []
+    },
+    "lifecycleScripts": {
+      "present": true,
+      "installTriggering": false,
+      "scripts": {
+        "prepare": "npm run build"
+      }
+    },
+    "obfuscationSignal": {
+      "present": false,
+      "evidence": []
+    },
+    "skippedLargeFiles": {
+      "present": false,
+      "count": 0,
+      "files": []
+    },
+    "noReadableSource": {
+      "present": false
+    },
+    "unresolvedRequire": {
+      "present": false,
+      "evidence": []
+    },
+    "analysisIncomplete": {
+      "present": false,
+      "reasons": []
+    }
+  },
+  "riskScore": 4,
+  "riskFlags": [],
+  "installPath": "node-fetch",
+  "scanOrigin": "npm-tarball-v1",
+  "artifact": {
+    "resolved": "https://registry.npmjs.org/node-fetch/-/node-fetch-2.6.6.tgz",
+    "integrity": "sha512-Z8/6vRlTUChSdIgMa51jxQ4lrw/Jy5SOW10ObaA47/RElsAN2c5Pn8bTgFGWn/ibwzXTE8qwr1Yzx28vsecXEA==",
+    "lockfileVersion": 3
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "engineCommit": "c1e6e86e5f6308b4e450ee3af18f102fce92905d",
+  "node": "v26.8.1",
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "scope": "One published package per snapshot. Transitive dependencies excluded."
+}
