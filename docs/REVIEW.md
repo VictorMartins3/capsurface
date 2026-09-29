@@ -17,11 +17,58 @@ writes either format to a file. Entries include the predecessor selection,
 capability changes, new risk flags, source evidence and scan coverage.
 Nonblocking changes such as a new `NO_COLOR` read remain visible.
 
+Source evidence is shown for both versions. JSON retains current evidence in
+`evidence` and adds `baselineEvidence`, grouped by predecessor version and
+installation. Ambiguous predecessors remain separate candidates, not a merged
+history. Baseline coverage gaps and differing scanning rules are identified.
+Missing evidence means the scanner did not record an indicator; it does not
+prove an operation was absent. For example, replacing `graceful-fs` with `fs`
+can expose an operation the previous scan did not recognize.
+
+This update changes the rules fingerprint because comparison wording is part
+of the fingerprinted engine. Rescan both snapshots with the same engine before
+approving an update; existing baseline rule-change warnings remain in effect.
+
 The exit codes follow `check`: 0 for a passing comparison, 1 for escalations
 or ambiguous predecessors, 2 for invalid inputs. Add `--fail-on-new` to
 block unapproved new packages. `--report-only` preserves the findings but
 returns 0 for a completed comparison; invalid snapshots still fail.
 The report file is written even when the comparison returns 1.
+
+## Audit passing comparisons and approvals
+
+Every JSON review includes `audit.installations`, even when `entries` is empty.
+It covers the current scanned installations, not historical approvals for
+packages that are no longer installed. `audit.counts` assigns each installation
+to one state: `incomplete`, `unbaselined`, `review-required`, `approved`,
+`unchanged` or `informational`, in that order of precedence.
+
+`approved` means a selective approval from the selected baseline applies to
+this comparison, with matching content and no coverage, engine or escalation
+issue. `unchanged` means no review change was detected without a selective
+approval. Neither state certifies safety. `unbaselined` remains visible even
+when the default gate permits a new package; use `--fail-on-new` to block it.
+
+Each installation records coverage status, rule changes and the actual
+`blocking` decision independently. Approval statuses are `none`, `applied`,
+`expired`, `invalid`, `not-applicable` (for example, changed content),
+`needs-review` or `ambiguous`. Available reasons, timestamps, expiry and
+selected baseline version/path are retained. Ambiguous predecessors cannot
+lend approvals to one another. Approval data in the current scan is not used
+as the audit's source of authorization.
+
+The CLI joins reasons from the baseline's approval history only when one
+record matches the package, version, installation, content digest, rules,
+approval timestamp and expiration. Missing or conflicting history leaves
+the reason unavailable instead of attributing a different review's reason.
+Programmatic callers can pass this history as `buildReview`'s fifth argument.
+
+The Markdown audit shows totals and recorded approval details. SARIF retains
+the same audit in `runs[0].properties.audit`, including when `results` is
+empty. Consumers must read these properties to display the audit; a SARIF
+viewer may show only findings. The audit adds explanation without changing
+gate decisions or creating extra SARIF alerts. `review-required` can also
+identify stale scanning rules even where the existing gate does not block.
 
 ## Review published tarballs before installation
 

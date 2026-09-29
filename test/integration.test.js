@@ -122,6 +122,11 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   assert.equal(changed.provenance.status, 'resolved');
   assert.deepEqual(changed.provenance.chain.map((p) => p.name), ['integration-project', 'integration-dep']);
   assert.ok(changed.evidence.some((e) => e.file === 'index.js'));
+  assert.equal(changed.baselineEvidence.length, 1);
+  assert.equal(changed.baselineEvidence[0].version, '1.0.0');
+  assert.equal(changed.baselineEvidence[0].analysisIncomplete, false);
+  assert.ok(!changed.baselineEvidence[0].evidence.some((e) => e.category === 'exec'),
+    'the old archive has no detected child_process indicator');
   scan('review', 'manifests', '--baseline', target, '--fail-on-new', '--report-only', '--out', 'review.md');
   assert.match(fs.readFileSync(path.join(project, 'review.md'), 'utf8'), /Review ID:/);
   const check = ['check', 'manifests', '--baseline', 'capsurface.lock.json', '--fail-on-new'];
@@ -133,6 +138,18 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
   scan('approve', 'manifests', '--baseline', 'capsurface.lock.json', '--id', added.id,
     '--reason', 'Reviewed the additional HTTP client');
   gate(check, 0);
+  const approvedArgs = ['review', 'manifests', '--baseline', 'capsurface.lock.json'];
+  const approved = JSON.parse(gate([...approvedArgs, '--json'], 0));
+  assert.equal(approved.entries.length, 0);
+  assert.equal(approved.audit.counts.approved, 2);
+  const approval = approved.audit.installations.find((item) => item.name === 'integration-dep').approval;
+  assert.equal(approval.status, 'applied');
+  assert.equal(approval.reason, 'Reviewed the child process integration',
+    'the installed CLI must join the baseline approval history');
+  const approvedSarif = JSON.parse(gate([...approvedArgs, '--format', 'sarif'], 0));
+  assert.equal(approvedSarif.runs[0].results.length, 0);
+  assert.deepEqual(approvedSarif.runs[0].properties.audit, approved.audit,
+    'passing SARIF reviews must retain approval information');
   const after = JSON.parse(gate(reviewArgs, 1));
   assert.deepEqual(after, before, 'proposed approvals must not hide changes from the target-branch review');
   const actionOutput = path.join(tmp, 'action-output');

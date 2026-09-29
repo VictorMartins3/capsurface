@@ -4,11 +4,24 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const { after } = require('node:test');
 
 const CLI = path.join(__dirname, '..', 'bin', 'capsurface.js');
 
+// Track only directories created by this test process. Never sweep the
+// shared temporary directory, which may contain another process's fixtures.
+const temporaryDirectories = new Set();
+after(() => {
+  for (const directory of temporaryDirectories) {
+    fs.rmSync(directory, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+  }
+  temporaryDirectories.clear();
+});
+
 function mkTmpDir(prefix) {
-  return fs.mkdtempSync(path.join(os.tmpdir(), `capsurface-test-${prefix}-`));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), `capsurface-test-${prefix}-`));
+  temporaryDirectories.add(directory);
+  return directory;
 }
 
 function writeFiles(baseDir, files) {
