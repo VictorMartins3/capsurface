@@ -1,0 +1,89 @@
+{
+  "node": "v26.8.1",
+  "oxcVersion": "0.152.0",
+  "cases": [
+    {
+      "file": "direct.js",
+      "equal": true,
+      "acornMedianMs": 0.12387499999999818,
+      "oxcAdapterMedianMs": 0.0887499999999477
+    },
+    {
+      "file": "json.js",
+      "equal": true,
+      "acornMedianMs": 0.09325000000001182,
+      "oxcAdapterMedianMs": 0.06774999999998954
+    },
+    {
+      "file": "wrapper.js",
+      "equal": true,
+      "acornMedianMs": 0.07283400000000029,
+      "oxcAdapterMedianMs": 0.06587500000000546
+    },
+    {
+      "file": "unicode.js",
+      "equal": true,
+      "acornMedianMs": 0.04129199999999855,
+      "oxcAdapterMedianMs": 0.0595419999999649
+    },
+    {
+      "file": "typed.ts",
+      "equal": true,
+      "acornMedianMs": 0.1382080000000201,
+      "oxcAdapterMedianMs": 0.05004100000002154
+    },
+    {
+      "file": "view.tsx",
+      "equal": true,
+      "acornMedianMs": 0.06320800000003146,
+      "oxcAdapterMedianMs": 0.025333999999986645
+    },
+    {
+      "file": "malformed.js",
+      "equal": true,
+      "acornMedianMs": 0.00866600000000517,
+      "oxcAdapterMedianMs": 0.006541999999967629
+    },
+    {
+      "file": "duplicate.js",
+      "equal": true,
+      "acornMedianMs": 0.012041999999951258,
+      "oxcAdapterMedianMs": 0.007542000000000826
+    },
+    {
+      "file": "common.cjs",
+      "equal": true,
+      "acornMedianMs": 0.02191699999997354,
+      "oxcAdapterMedianMs": 0.02295800000001691
+    },
+    {
+      "file": "modern.js",
+      "equal": false,
+      "acornMedianMs": 0.00874999999996362,
+      "oxcAdapterMedianMs": 0.019333000000017364,
+      "acorn": {
+        "parsed": false,
+        "references": [
+          {
+            "line": 1,
+            "reason": "ast-parse-error"
+          }
+        ]
+      },
+      "oxc": {
+        "parsed": true,
+        "references": [],
+        "credentialFlows": {
+          "matches": [],
+          "unresolved": [],
+          "truncated": false
+        }
+      }
+    }
+  ],
+  "caveats": [
+    "In-process parser adapter with the existing JavaScript analysis. No isolation, packaging or Rust data-flow implementation.",
+    "Ten synthetic cases, 25 timings each, one machine. Not a production acceptance benchmark.",
+    "Any mismatch prevents replacing the production parser until explained and tested."
+  ]
+}
