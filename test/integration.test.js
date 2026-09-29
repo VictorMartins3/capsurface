@@ -77,6 +77,15 @@ test('packed CLI reviews a real npm upgrade against the committed baseline', { t
     require('../lib/rules-version').RULES_VERSION, 'packing must preserve the engine fingerprint');
   assert.equal(fs.existsSync(path.join(tool, 'node_modules', 'acorn')), false,
     'the default installation must not require optional parsers');
+  assert.equal(fs.existsSync(path.join(tool, 'node_modules', 'yaml')), false,
+    'the default installation must not require the pnpm parser');
+  const yamlLock = path.join(tmp, 'pnpm-lock.yaml');
+  fs.writeFileSync(yamlLock, "lockfileVersion: '9.0'\nimporters:\n  .: {}\n");
+  const missingYaml = spawnSync(process.execPath, [cli, 'scan-lock', yamlLock,
+    '--tarballs', path.join(tmp, 'unused-map.json'), '--out', path.join(tmp, 'pnpm-output')],
+  { cwd: tmp, encoding: 'utf8', env });
+  assert.equal(missingYaml.status, 2);
+  assert.match(missingYaml.stderr, /Install yaml@2\.9\.1 alongside capsurface/);
   const project = writePackage(tmp, 'project', { name: 'integration-project', version: '1.0.0', private: true });
   const scan = (...args) => run(process.execPath, [cli, ...args], project);
   const gate = (args, status) => run(process.execPath, [cli, ...args], project, status);

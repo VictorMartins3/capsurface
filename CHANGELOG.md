@@ -11,6 +11,10 @@ Notable user-facing changes are recorded here using
   review entry as JSON, preserving source evidence, provenance and audit
   details. It explicitly reports that freshness has not been checked and
   does not change approvals or gate results.
+- Pre-install registry-tarball scans from pnpm v9 lockfiles, preserving aliases,
+  workspace references and separate peer contexts. Requires optional yaml 2.9.1;
+  local workspace source and patched/Git dependencies are not supported. Uses
+  a separate scan origin and changes the engine fingerprint.
 - Before/after source evidence in dependency reviews, with separate evidence
   for ambiguous predecessors and explicit limits when an indicator was not
   detected. Rescan both snapshots with the updated engine before approval.
@@ -19,6 +23,11 @@ Notable user-facing changes are recorded here using
   baseline approvals. Audit information does not change gate decisions.
 
 ### Fixed
+
+- Tarball scans accept node-tar timestamp fields and a single named archive
+  root, fixing scans of packages such as `@types/babel__core@7.20.5`. Mixed
+  roots, traversal, links and identity mismatches remain rejected. This changes
+  the engine fingerprint; rescan both comparison inputs.
 
 - Deep scans run parsing and AST analysis in a separate process with a five-second
   timeout per analysis. Timeouts and worker failures mark coverage incomplete

@@ -82,11 +82,12 @@ function cmdScan(args) {
 function cmdScanLock(args) {
   const { positional, flags } = parseFlags(args);
   if (positional.length !== 1 || typeof flags.tarballs !== 'string' || typeof flags.out !== 'string') {
-    die('usage: capsurface scan-lock <package-lock.json> --tarballs <map.json> --out <manifests-dir> [--deep]');
+    die('usage: capsurface scan-lock <package-lock.json|pnpm-lock.yaml> --tarballs <map.json> --out <manifests-dir> [--deep]');
   }
   const result = require('../lib/lockfile-scan').scanLockfile(positional[0], flags.tarballs, flags.out, { deep: flags.deep });
   console.log(`Scanned ${result.count} locked tarball(s) without installing packages or running scripts.`);
   console.log(`Manifests written to ${flags.out}/`);
+  if (result.scope) console.log('Scope: registry tarballs only. Project and linked workspace source files were not scanned.');
   if (result.incomplete) { console.error(`${result.incomplete} package(s) have incomplete analysis.`); process.exitCode = 2; }
 }
 
@@ -610,7 +611,7 @@ function main() {
 Usage:
   capsurface scan <package-dir> [--out manifest.json] [--deep]
   capsurface scan-tree <node_modules-dir> --out <manifests-dir> [--deep]
-  capsurface scan-lock <package-lock.json> --tarballs <map.json> --out <manifests-dir> [--deep]
+  capsurface scan-lock <package-lock.json|pnpm-lock.yaml> --tarballs <map.json> --out <manifests-dir> [--deep]
   capsurface baseline <manifests-dir> [--out capsurface.lock.json]
   capsurface check <manifests-dir> --baseline capsurface.lock.json [--fail-on-new] [--report-only] [--json]
   capsurface review <manifests-dir> --baseline <file> [--json | --format markdown|json|sarif] [--lockfile <package-lock.json>] [--project-root <dir>] [--out <file>] [--fail-on-new] [--report-only]

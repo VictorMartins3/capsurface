@@ -40,8 +40,9 @@ jobs:
       - run: npm run test:integration
       - run: npm run demo
       - name: Install optional parsers with lifecycle scripts disabled
-        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund acorn@8.15.0 acorn-typescript@1.4.13
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund --include=peer acorn@8.15.0 acorn-typescript@1.4.13 yaml@2.9.1
       - run: npm run test:deep
+      - run: npm run test:pnpm
 
   publish:
     needs: validate

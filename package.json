@@ -54,17 +54,22 @@
     "test": "node --test test/boundary.test.js test/cli.test.js test/comparison.test.js test/diff.test.js test/discovery.test.js test/evasion.test.js test/gating.test.js test/hardening.test.js test/review.test.js test/scanner.test.js test/provenance.test.js test/sarif.test.js test/filesystem-operations.test.js test/content-approval.test.js test/source-context.test.js test/install-context.test.js test/tarball.test.js",
     "demo": "./examples/run-demo.sh",
     "test:integration": "node --test test/integration.test.js",
-    "test:deep": "node --test test/ast-timeout.test.js test/ast-imports.test.js test/ast-capabilities.test.js test/typed-ast.test.js test/process-operations.test.js test/deep-action.test.js test/environment-network.test.js test/tarball-deep.test.js"
+    "test:deep": "node --test test/ast-timeout.test.js test/ast-imports.test.js test/ast-capabilities.test.js test/typed-ast.test.js test/process-operations.test.js test/deep-action.test.js test/environment-network.test.js test/tarball-deep.test.js",
+    "test:pnpm": "node --test test/pnpm-lock.test.js"
   },
   "peerDependencies": {
     "acorn": "8.15.0",
-    "acorn-typescript": "1.4.13"
+    "acorn-typescript": "1.4.13",
+    "yaml": "2.9.1"
   },
   "peerDependenciesMeta": {
     "acorn": {
       "optional": true
     },
     "acorn-typescript": {
+      "optional": true
+    },
+    "yaml": {
       "optional": true
     }
   }

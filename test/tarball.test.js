@@ -28,6 +28,43 @@ function fixture(t) {
 const pkg = { name: 'pkg', version: '1.0.0' };
 const packageEntry = { name: 'package/package.json', body: JSON.stringify(pkg) };
 
+test('reads node-tar timestamps, named roots and full POSIX prefixes without weakening path validation', (t) => {
+  const f = fixture(t);
+  function custom(prefix, timestamps) {
+    const body = JSON.stringify(pkg);
+    const h = header('package.json', Buffer.byteLength(body));
+    h.write(prefix, 345);
+    if (timestamps) {
+      h.write('14526766567\0', 476);
+      h.write('14526766567\0', 488);
+    }
+    h.fill(32, 148, 156);
+    h.write(h.reduce((sum, byte) => sum + byte, 0).toString(8).padStart(6, '0') + '\0 ', 148);
+    return Buffer.concat([h, Buffer.from(body), Buffer.alloc(512 - Buffer.byteLength(body)), Buffer.alloc(1024)]);
+  }
+  for (const [prefix, timestamps] of [['babel__core', true], ['r'.repeat(140), false]]) {
+    const data = zlib.gzipSync(custom(prefix, timestamps));
+    const file = path.join(f.root, 'custom.tgz');
+    fs.writeFileSync(file, data);
+    const dest = f.destination();
+    assert.deepEqual(unpackTarball(file, integrity(data), dest).pkg, pkg);
+    assert.deepEqual(fs.readdirSync(dest), ['package.json']);
+  }
+  for (const name of ['other/index.js', 'babel__core/../outside', 'babel__core/node_modules/x/index.js']) {
+    const a = f.archive([{ ...packageEntry, name: 'babel__core/package.json' }, { name, body: 'payload' }]);
+    const dest = f.destination();
+    assert.throws(() => unpackTarball(a.file, a.integrity, dest));
+    assert.deepEqual(fs.readdirSync(dest), []);
+  }
+  const malformed = custom('babel__core', true);
+  malformed[476] = 120;
+  malformed.fill(32, 148, 156);
+  malformed.write(malformed.subarray(0, 512).reduce((sum, byte) => sum + byte, 0).toString(8).padStart(6, '0') + '\0 ', 148);
+  const data = zlib.gzipSync(malformed), file = path.join(f.root, 'bad-time.tgz');
+  fs.writeFileSync(file, data);
+  assert.throws(() => unpackTarball(file, integrity(data), f.destination()), /numeric/);
+});
+
 test('verifies strongest integrity, checksum, PAX and GNU long names before extraction', (t) => {
   const f = fixture(t);
   const long = 'package/' + 'segment/'.repeat(20) + 'entry.js';
